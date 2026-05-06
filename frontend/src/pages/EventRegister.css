@@ -22,6 +22,7 @@
   position: relative;
 }
 .event-header { text-align: center; margin-bottom: 28px; }
+.event-brand-logo { height: 44px; width: auto; object-fit: contain; margin-bottom: 16px; }
 .event-icon { font-size: 52px; margin-bottom: 12px; }
 .event-header h1 { font-size: 22px; font-weight: 800; color: var(--white); }
 .event-description { color: rgba(255,255,255,.65); margin-top: 8px; font-size: 14px; }
@@ -54,3 +55,29 @@
 
 .sig-hint { font-size: 11px; color: rgba(255,255,255,.5); margin-top: 6px; }
 .field-error { font-size: 12px; color: var(--danger); }
+
+/* CRM row */
+.crm-row {
+  display: flex; gap: 10px;
+}
+.crm-number-input {
+  flex: 1;
+}
+.crm-uf-select {
+  width: 90px; flex-shrink: 0;
+}
+
+/* CRM validation feedback */
+.crm-status {
+  font-size: 12px; margin-top: 6px;
+}
+.crm-checking { color: rgba(255,255,255,.55); }
+.crm-valid    { color: #4ade80; }
+.crm-invalid  { color: var(--danger, #f87171); }
+
+@media (max-width: 480px) {
+  .event-page { padding: 20px 12px; }
+  .event-card { padding: 24px 16px; border-radius: 16px; }
+  .event-icon { font-size: 40px; }
+  .event-header h1 { font-size: 18px; }
+}

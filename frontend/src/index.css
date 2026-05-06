@@ -230,3 +230,23 @@ body::after {
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
 }
+
+/* ====== RESPONSIVO ====== */
+@media (max-width: 900px) {
+  .main-content { padding: 24px 20px; }
+  .form-row { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 600px) {
+  .main-content { padding: 16px 12px; }
+  .form-row { grid-template-columns: 1fr; }
+  .form-actions { flex-direction: column; }
+  .form-actions .btn-primary,
+  .form-actions .btn-secondary { width: 100%; text-align: center; }
+  .page-header h1 { font-size: 20px; }
+  .form-card { padding: 18px 14px; }
+  .meetings-table th,
+  .meetings-table td,
+  .users-table th,
+  .users-table td { padding: 10px 10px; font-size: 13px; }
+}

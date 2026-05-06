@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import logoAstra from '../assets/logo-astra.png';
 import './Login.css';
 
 const Login = () => {
@@ -28,7 +29,9 @@ const Login = () => {
   return (
     <div className="login-page">
       <div className="login-card">
-        <div className="login-logo">📋</div>
+        <div className="login-logo">
+          <img src={logoAstra} alt="AstraZeneca" className="login-brand-logo" />
+        </div>
         <h1 className="login-title">Mini-Meeting</h1>
         <p className="login-subtitle">Faça login para continuar</p>
         <form onSubmit={handleSubmit} className="login-form">

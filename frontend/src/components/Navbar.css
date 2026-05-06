@@ -9,12 +9,16 @@
   box-shadow: 0 4px 30px rgba(0,0,0,.3);
 }
 .navbar-brand { display: flex; align-items: center; gap: 10px; margin-right: 16px; }
+.brand-logo { height: 32px; width: auto; object-fit: contain; }
 .brand-icon { font-size: 24px; }
 .brand-text {
   font-size: 16px; font-weight: 800; letter-spacing: -.3px;
   background: linear-gradient(90deg, var(--primary), #ce93d8);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
 }
+
+/* Desktop */
+.navbar-collapse { display: flex; align-items: center; flex: 1; gap: 24px; }
 .navbar-links { display: flex; gap: 4px; flex: 1; }
 .nav-link {
   padding: 7px 15px; border-radius: 8px; text-decoration: none;
@@ -29,11 +33,45 @@
 .user-badge {
   font-size: 13px; font-weight: 600; color: var(--text-muted);
   background: var(--bg-card); padding: 5px 14px; border-radius: 20px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border); white-space: nowrap;
 }
 .btn-logout {
   background: rgba(233,30,140,.1); border: 1px solid rgba(233,30,140,.25); color: #f48fb1;
   padding: 6px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; font-weight: 600;
-  transition: .2s;
+  transition: .2s; white-space: nowrap;
 }
 .btn-logout:hover { background: rgba(233,30,140,.2); }
+
+/* Hamburger — oculto no desktop */
+.hamburger {
+  display: none; flex-direction: column; justify-content: center; align-items: center;
+  gap: 5px; width: 36px; height: 36px; background: none; border: none;
+  cursor: pointer; margin-left: auto; padding: 4px;
+}
+.hamburger span {
+  display: block; width: 22px; height: 2px;
+  background: var(--text-main); border-radius: 2px; transition: .25s;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .navbar { padding: 0 16px; flex-wrap: wrap; height: auto; min-height: 56px; }
+  .navbar-brand { padding: 10px 0; }
+  .hamburger { display: flex; }
+
+  .navbar-collapse {
+    display: none; flex-direction: column; align-items: stretch;
+    width: 100%; gap: 0; padding-bottom: 12px;
+  }
+  .navbar-collapse.open { display: flex; }
+
+  .navbar-links { flex-direction: column; gap: 2px; }
+  .nav-link { padding: 10px 12px; font-size: 15px; }
+
+  .navbar-user {
+    flex-direction: column; align-items: flex-start; gap: 8px;
+    padding-top: 10px; border-top: 1px solid var(--border); margin-top: 4px;
+  }
+  .user-badge { font-size: 12px; }
+  .btn-logout { width: 100%; text-align: center; }
+}

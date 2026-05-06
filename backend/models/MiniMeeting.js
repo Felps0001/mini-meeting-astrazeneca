@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const attendeeSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   email: { type: String, required: true, lowercase: true, trim: true },
+  crm: { type: String, trim: true },
+  crmUf: { type: String, trim: true, uppercase: true },
   signature: { type: String }, // base64 da assinatura
   registeredAt: { type: Date, default: Date.now }
 });

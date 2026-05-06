@@ -20,3 +20,9 @@
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
 }
 .invite-link-display code { font-size: 12px; color: #f48fb1; word-break: break-all; flex: 1; }
+
+@media (max-width: 600px) {
+  .invite-section { max-width: 100%; padding: 16px; }
+  .invite-form { flex-direction: column; }
+  .invite-form input { width: 100%; }
+}

@@ -44,4 +44,11 @@
 
 @media (max-width: 768px) {
   .detail-grid { grid-template-columns: 1fr; }
+  .header-actions { gap: 6px; }
+  .header-actions .btn-primary,
+  .header-actions .btn-secondary,
+  .header-actions .btn-danger { padding: 8px 14px; font-size: 13px; }
+  .attendee-item { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .attendee-date { align-self: flex-end; }
+  .invite-link-box code { font-size: 11px; }
 }
