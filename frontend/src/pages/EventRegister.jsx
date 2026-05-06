@@ -199,7 +199,8 @@ const EventRegister = () => {
 
           <div className="form-group">
             <label>CRM *</label>
-            <div className="crm-row">
+            <div className="crm-input-box">
+              <span className="crm-prefix">CRM/</span>
               <input
                 type="text"
                 className="crm-number-input"
@@ -210,10 +211,11 @@ const EventRegister = () => {
                     crm: e.target.value.replace(/\D/g, "").slice(0, 6),
                   }))
                 }
-                placeholder="Ex: 123456"
+                placeholder="000000"
                 maxLength={6}
                 required
               />
+              <div className="crm-divider" />
               <select
                 className="crm-uf-select"
                 value={form.crmUf}
@@ -232,7 +234,7 @@ const EventRegister = () => {
             </div>
 
             {crmStatus === "checking" && (
-              <p className="crm-status crm-checking">Verificando CRM...</p>
+              <p className="crm-status crm-checking">⏳ Verificando CRM...</p>
             )}
             {crmStatus === "valid" && (
               <p className="crm-status crm-valid">
