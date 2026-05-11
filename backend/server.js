@@ -11,7 +11,7 @@ app.use(cors({
   origin: (origin, cb) => {
     const allowed = [
       process.env.CLIENT_URL,
-      'https://felps0001.github.io',
+      'https://azminimeeting.grfapps.com.br',
     ].filter(Boolean);
     if (!origin || allowed.includes(origin) || /^http:\/\/localhost:\d+$/.test(origin) || /^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) {
       return cb(null, true);
