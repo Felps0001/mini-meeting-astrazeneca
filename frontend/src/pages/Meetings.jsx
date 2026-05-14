@@ -11,6 +11,7 @@ const Meetings = () => {
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [statusFilter, setStatusFilter] = useState('todos');
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
 
@@ -46,6 +47,24 @@ const Meetings = () => {
     alert('Link de convite copiado!');
   };
 
+  const statusCounts = {
+    todos: meetings.length,
+    ativo: meetings.filter(m => m.status === 'ativo').length,
+    encerrado: meetings.filter(m => m.status === 'encerrado').length,
+    cancelado: meetings.filter(m => m.status === 'cancelado').length,
+  };
+
+  const filtered = statusFilter === 'todos'
+    ? meetings
+    : meetings.filter(m => m.status === statusFilter);
+
+  const filterTabs = [
+    { key: 'todos', label: 'Todos' },
+    { key: 'ativo', label: 'Ativos' },
+    { key: 'encerrado', label: 'Encerrados' },
+    { key: 'cancelado', label: 'Cancelados' },
+  ];
+
   return (
     <div className="app-layout">
       <Navbar />
@@ -65,6 +84,25 @@ const Meetings = () => {
             <Link to="/meetings/new" className="btn-primary">Criar meeting</Link>
           </div>
         ) : (
+          <>
+            <div className="filter-tabs">
+              {filterTabs.map(tab => (
+                <button
+                  key={tab.key}
+                  className={`filter-tab${statusFilter === tab.key ? ' active' : ''}`}
+                  onClick={() => setStatusFilter(tab.key)}
+                >
+                  {tab.label}
+                  <span className="tab-count">{statusCounts[tab.key]}</span>
+                </button>
+              ))}
+            </div>
+
+            {filtered.length === 0 ? (
+              <div className="empty-state">
+                <p>Nenhum meeting {statusFilter === 'encerrado' ? 'encerrado' : statusFilter === 'cancelado' ? 'cancelado' : 'ativo'} encontrado.</p>
+              </div>
+            ) : (
           <div className="meetings-table-wrap">
             <table className="meetings-table">
               <thead>
@@ -80,7 +118,7 @@ const Meetings = () => {
                 </tr>
               </thead>
               <tbody>
-                {meetings.map(m => (
+                {filtered.map(m => (
                   <tr key={m._id}>
                     <td>
                       <Link to={`/meetings/${m._id}`} className="meeting-link">{m.title}</Link>
@@ -116,6 +154,8 @@ const Meetings = () => {
               </tbody>
             </table>
           </div>
+            )}
+          </>
         )}
       </main>
     </div>

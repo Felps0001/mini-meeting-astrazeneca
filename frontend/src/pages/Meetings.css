@@ -1,1 +1,53 @@
 .meetings-table .attendee-count { font-weight: 700; color: var(--primary); }
+
+/* ====== FILTER TABS ====== */
+.filter-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filter-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 18px;
+  border-radius: 30px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  backdrop-filter: blur(6px);
+  transition: all .2s;
+}
+
+.filter-tab:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-main);
+  border-color: rgba(233, 30, 140, .4);
+}
+
+.filter-tab.active {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+  color: var(--white);
+  border-color: transparent;
+  box-shadow: 0 4px 18px rgba(233, 30, 140, .35);
+}
+
+.tab-count {
+  background: rgba(255, 255, 255, .15);
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 20px;
+  text-align: center;
+}
+
+.filter-tab:not(.active) .tab-count {
+  background: rgba(255, 255, 255, .08);
+  color: var(--text-dim);
+}
