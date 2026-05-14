@@ -128,9 +128,17 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (date) meeting.date = date;
     if (startTime) meeting.startTime = startTime;
     if (endTime !== undefined) meeting.endTime = endTime;
-    if (status) meeting.status = status;
+    if (status) {
+      const validStatuses = ['ativo', 'encerrado', 'cancelado'];
+      if (!validStatuses.includes(status))
+        return res.status(400).json({ message: 'Status inválido' });
+      if (status === 'ativo' && meeting.status !== 'ativo' && req.user.role !== 'admin')
+        return res.status(403).json({ message: 'Não é possível reabrir um meeting encerrado ou cancelado' });
+      meeting.status = status;
+    }
 
     await meeting.save();
+    await meeting.populate('organizer', 'name email');
     res.json(meeting);
   } catch {
     res.status(500).json({ message: 'Erro interno' });

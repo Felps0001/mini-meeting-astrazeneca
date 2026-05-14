@@ -11,11 +11,13 @@ const Dashboard = () => {
   const { user, isAdmin } = useAuth();
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get('/meetings').then(res => {
-      setMeetings(res.data);
-    }).finally(() => setLoading(false));
+    api.get('/meetings')
+      .then(res => setMeetings(res.data))
+      .catch(() => setError('Erro ao carregar meetings'))
+      .finally(() => setLoading(false));
   }, []);
 
   const totalMeetings = meetings.length;
@@ -61,6 +63,8 @@ const Dashboard = () => {
           <h2>Meetings Recentes</h2>
           <Link to="/meetings/new" className="btn-primary">+ Novo Meeting</Link>
         </div>
+
+        {error && <div className="error-msg">{error}</div>}
 
         {loading ? (
           <div className="loading">Carregando...</div>
