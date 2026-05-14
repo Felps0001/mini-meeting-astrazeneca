@@ -7,9 +7,33 @@ import logoAstra from "../assets/logo-astra.png";
 import "./EventRegister.css";
 
 const UF_LIST = [
-  "AC","AL","AM","AP","BA","CE","DF","ES","GO","MA",
-  "MG","MS","MT","PA","PB","PE","PI","PR","RJ","RN",
-  "RO","RR","RS","SC","SE","SP","TO",
+  "AC",
+  "AL",
+  "AM",
+  "AP",
+  "BA",
+  "CE",
+  "DF",
+  "ES",
+  "GO",
+  "MA",
+  "MG",
+  "MS",
+  "MT",
+  "PA",
+  "PB",
+  "PE",
+  "PI",
+  "PR",
+  "RJ",
+  "RN",
+  "RO",
+  "RR",
+  "RS",
+  "SC",
+  "SE",
+  "SP",
+  "TO",
 ];
 
 const EventRegister = () => {
@@ -19,7 +43,26 @@ const EventRegister = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", city: "", crm: "", crmUf: "" });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    city: "",
+    crm: "",
+    crmUf: "",
+  });
+
+  const formatPhone = (digits) => {
+    if (!digits) return "";
+    if (digits.length <= 10) {
+      return digits
+        .replace(/(\d{2})(\d)/, "($1) $2")
+        .replace(/(\d{4})(\d)/, "$1-$2");
+    }
+    return digits
+      .replace(/(\d{2})(\d)/, "($1) $2")
+      .replace(/(\d{5})(\d)/, "$1-$2");
+  };
 
   // CRM validation: 'idle' | 'checking' | 'valid' | 'invalid' | 'error'
   const [crmStatus, setCrmStatus] = useState("idle");
@@ -65,7 +108,10 @@ const EventRegister = () => {
       try {
         const cfmRes = await fetch(
           `https://www.sistemas.cfm.org.br/api/publico/consulta/medico/${crm}/${uf}`,
-          { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8000) }
+          {
+            headers: { Accept: "application/json" },
+            signal: AbortSignal.timeout(8000),
+          },
         );
         if (cfmRes.status === 404) {
           setCrmStatus("invalid");
@@ -225,7 +271,7 @@ const EventRegister = () => {
               <label>Telefone (DDD) *</label>
               <input
                 type="tel"
-                value={form.phone}
+                value={formatPhone(form.phone)}
                 onChange={(e) =>
                   setForm((p) => ({
                     ...p,
@@ -285,7 +331,6 @@ const EventRegister = () => {
                 ))}
               </select>
             </div>
-
             {crmStatus === "checking" && (
               <p className="crm-status crm-checking">⏳ Verificando CRM...</p>
             )}
@@ -293,7 +338,8 @@ const EventRegister = () => {
               <p className="crm-status crm-valid">
                 ✔ CRM válido{crmDoctorName ? ` — ${crmDoctorName}` : ""}
               </p>
-            )}            {(crmStatus === "invalid" || crmStatus === "error") && (
+            )}{" "}
+            {(crmStatus === "invalid" || crmStatus === "error") && (
               <p className="crm-status crm-invalid">✖ {crmError}</p>
             )}
           </div>
@@ -303,12 +349,15 @@ const EventRegister = () => {
           <button
             type="submit"
             className="btn-primary btn-full"
-            disabled={submitting || crmStatus === "checking" || crmStatus === "idle"}          >
+            disabled={
+              submitting || crmStatus === "checking" || crmStatus === "idle"
+            }
+          >
             {submitting
               ? "Inscrevendo..."
               : crmStatus === "checking"
-              ? "Verificando CRM..."
-              : "✅ Confirmar inscrição"}
+                ? "Verificando CRM..."
+                : "✅ Confirmar inscrição"}
           </button>
         </form>
       </div>
