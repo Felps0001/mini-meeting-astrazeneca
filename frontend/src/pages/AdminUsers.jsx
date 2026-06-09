@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import api from "../services/api";
 import Navbar from "../components/Navbar";
+import { useModal } from "../context/ModalContext";
 import "./AdminUsers.css";
 
 const AdminUsers = () => {
+  const { toast, confirm } = useModal();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [inviteLoading, setInviteLoading] = useState(false);
@@ -51,23 +53,23 @@ const AdminUsers = () => {
       await api.patch(`/users/${user._id}`, { isActive: !user.isActive });
       fetchUsers();
     } catch {
-      alert("Erro ao atualizar usuário");
+      toast("Erro ao atualizar usuário", "error");
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Remover este usuário?")) return;
+    if (!(await confirm("Remover este usuário?"))) return;
     try {
       await api.delete(`/users/${id}`);
       fetchUsers();
     } catch (err) {
-      alert(err.response?.data?.message || "Erro ao remover");
+      toast(err.response?.data?.message || "Erro ao remover", "error");
     }
   };
 
   const copyLink = (link) => {
     navigator.clipboard.writeText(link);
-    alert("Link copiado!");
+    toast("Link copiado!", "success");
   };
 
   const downloadTemplate = () => {
@@ -104,8 +106,8 @@ const AdminUsers = () => {
     if (!file) return;
     const text = await file.text();
     const users = parseCSV(text);
-    if (users === null) return alert('CSV inválido. Use as colunas: nome, email');
-    if (users.length === 0) return alert('Nenhum usuário encontrado no arquivo.');
+    if (users === null) return toast('CSV inválido. Use as colunas: nome, email', 'error');
+    if (users.length === 0) return toast('Nenhum usuário encontrado no arquivo.', 'warning');
     setBulkResults(null);
     setBulkLoading(true);
     try {
@@ -113,7 +115,7 @@ const AdminUsers = () => {
       setBulkResults(data.results);
       fetchUsers();
     } catch (err) {
-      alert(err.response?.data?.message || 'Erro na importação');
+      toast(err.response?.data?.message || 'Erro na importação', 'error');
     } finally {
       setBulkLoading(false);
     }

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
+import { useModal } from "../context/ModalContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import "./Meetings.css";
@@ -13,6 +14,7 @@ const Meetings = () => {
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
   const { isAdmin } = useAuth();
+  const { toast, confirm } = useModal();
   const navigate = useNavigate();
 
   const fetchMeetings = () => {
@@ -29,12 +31,12 @@ const Meetings = () => {
   }, []);
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Deseja excluir este meeting?")) return;
+    if (!(await confirm("Deseja excluir este meeting?"))) return;
     try {
       await api.delete(`/meetings/${id}`);
       fetchMeetings();
     } catch (err) {
-      alert(err.response?.data?.message || "Erro ao excluir");
+      toast(err.response?.data?.message || "Erro ao excluir", "error");
     }
   };
 
@@ -43,14 +45,14 @@ const Meetings = () => {
       await api.put(`/meetings/${id}`, { status });
       fetchMeetings();
     } catch {
-      alert("Erro ao atualizar status");
+      toast("Erro ao atualizar status", "error");
     }
   };
 
   const copyInviteLink = (inviteToken) => {
     const link = `${window.location.origin}${import.meta.env.BASE_URL}event/${inviteToken}`;
     navigator.clipboard.writeText(link);
-    alert("Link de convite copiado!");
+    toast("Link de convite copiado!", "success");
   };
 
   const statusCounts = {
@@ -198,8 +200,8 @@ const Meetings = () => {
                             <button
                               className="btn-icon btn-danger"
                               title="Cancelar"
-                              onClick={() => {
-                                if (window.confirm("Cancelar este meeting?"))
+                              onClick={async () => {
+                                if (await confirm("Cancelar este meeting?"))
                                   handleStatusChange(m._id, "cancelado");
                               }}
                             >

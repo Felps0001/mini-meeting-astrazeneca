@@ -1,6 +1,7 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { ModalProvider } from "./context/ModalContext";
 import { PrivateRoute, AdminRoute } from "./components/PrivateRoute";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -10,16 +11,19 @@ import MeetingForm from "./pages/MeetingForm";
 import MeetingDetail from "./pages/MeetingDetail";
 import AdminUsers from "./pages/AdminUsers";
 import EventRegister from "./pages/EventRegister";
+import CheckIn from "./pages/CheckIn";
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <ModalProvider>
+      <AuthProvider>
+        <BrowserRouter>
         <Routes>
           {/* Públicas */}
           <Route path="/login" element={<Login />} />
           <Route path="/register/:token" element={<Register />} />
           <Route path="/event/:token" element={<EventRegister />} />
+          <Route path="/checkin/:token" element={<CheckIn />} />
 
           {/* Privadas */}
           <Route
@@ -79,6 +83,7 @@ function App() {
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+  </ModalProvider>
   );
 }
 

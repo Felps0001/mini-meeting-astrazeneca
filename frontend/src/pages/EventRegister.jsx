@@ -4,6 +4,7 @@ import api from "../services/api";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import logoAstra from "../assets/logo-astra.png";
+import { QRCodeSVG } from "qrcode.react";
 import "./EventRegister.css";
 
 const UF_LIST = [
@@ -42,6 +43,7 @@ const EventRegister = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [checkinToken, setCheckinToken] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -157,11 +159,12 @@ const EventRegister = () => {
     setError("");
     setSubmitting(true);
     try {
-      await api.post(`/meetings/invite/${token}/register`, {
+      const res = await api.post(`/meetings/invite/${token}/register`, {
         ...form,
         crm: form.crm.replace(/\D/g, ""),
         crmUf: form.crmUf,
       });
+      setCheckinToken(res.data.checkinToken || "");
       setSuccess(true);
     } catch (err) {
       setError(err.response?.data?.message || "Erro ao realizar inscrição");
@@ -190,7 +193,10 @@ const EventRegister = () => {
       </div>
     );
 
-  if (success)
+  if (success) {
+    const checkinUrl = checkinToken
+      ? `${window.location.origin}/checkin/${checkinToken}`
+      : null;
     return (
       <div className="event-page">
         <div className="event-card">
@@ -199,10 +205,32 @@ const EventRegister = () => {
           <p>
             Você foi inscrito com sucesso em <strong>{event.title}</strong>.
           </p>
-          <p>Nos vemos lá! 🎉</p>
+          {checkinUrl && (
+            <div className="checkin-qr-section">
+              <p className="checkin-qr-title">Seu QR Code de check-in</p>
+              <div className="checkin-qr-wrapper">
+                <QRCodeSVG
+                  value={checkinUrl}
+                  size={200}
+                  bgColor="#ffffff"
+                  fgColor="#0d0518"
+                  level="M"
+                />
+              </div>
+              <p className="checkin-qr-hint">
+                📱 Salve este QR Code — mostre ao organizador no dia do evento
+                para confirmar sua presença.
+              </p>
+              <div className="checkin-token-box">
+                <span className="checkin-token-label">Token de backup:</span>
+                <code className="checkin-token-value">{checkinToken}</code>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
+  }
 
   return (
     <div className="event-page">

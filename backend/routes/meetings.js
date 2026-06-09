@@ -161,6 +161,27 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// DELETE /api/meetings/:id/attendees/:attendeeId - cancela inscrição de um participante
+router.delete('/:id/attendees/:attendeeId', authMiddleware, async (req, res) => {
+  try {
+    const meeting = await MiniMeeting.findById(req.params.id);
+    if (!meeting) return res.status(404).json({ message: 'Meeting não encontrado' });
+
+    if (req.user.role !== 'admin' && meeting.organizer.toString() !== req.user.id)
+      return res.status(403).json({ message: 'Acesso negado' });
+
+    const attendee = meeting.attendees.id(req.params.attendeeId);
+    if (!attendee) return res.status(404).json({ message: 'Participante não encontrado' });
+
+    attendee.deleteOne();
+    await meeting.save();
+
+    res.json({ message: 'Inscrição cancelada com sucesso' });
+  } catch {
+    res.status(500).json({ message: 'Erro interno' });
+  }
+});
+
 // GET /api/meetings/invite/:token - dados públicos para formulário de inscrição
 router.get('/invite/:token', async (req, res) => {
   try {
@@ -221,10 +242,43 @@ router.post('/invite/:token/register', async (req, res) => {
     if (alreadyRegistered)
       return res.status(400).json({ message: 'Este email já está inscrito neste evento' });
 
-    meeting.attendees.push({ name, email: email.toLowerCase(), phone, city, crm: crmNum, crmUf: ufUpper });
+    meeting.attendees.push({ name, email: email.toLowerCase(), phone, city, crm: crmNum, crmUf: ufUpper, checkinToken: uuidv4() });
     await meeting.save();
 
-    res.json({ message: 'Inscrição realizada com sucesso!' });
+    const newAttendee = meeting.attendees[meeting.attendees.length - 1];
+    res.json({ message: 'Inscrição realizada com sucesso!', checkinToken: newAttendee.checkinToken });
+  } catch {
+    res.status(500).json({ message: 'Erro interno' });
+  }
+});
+
+// POST /api/meetings/checkin/:checkinToken - confirmar presença via token único
+router.post('/checkin/:checkinToken', async (req, res) => {
+  try {
+    const meeting = await MiniMeeting.findOne({ 'attendees.checkinToken': req.params.checkinToken });
+    if (!meeting) return res.status(404).json({ message: 'Token de check-in inválido' });
+
+    const attendee = meeting.attendees.find(a => a.checkinToken === req.params.checkinToken);
+    if (!attendee) return res.status(404).json({ message: 'Participante não encontrado' });
+
+    if (attendee.checkedIn) {
+      return res.json({
+        message: 'Check-in já realizado',
+        alreadyCheckedIn: true,
+        attendee: { name: attendee.name, email: attendee.email, checkedInAt: attendee.checkedInAt },
+        event: { title: meeting.title }
+      });
+    }
+
+    attendee.checkedIn = true;
+    attendee.checkedInAt = new Date();
+    await meeting.save();
+
+    res.json({
+      message: 'Check-in realizado com sucesso!',
+      attendee: { name: attendee.name, email: attendee.email, crm: attendee.crm, crmUf: attendee.crmUf },
+      event: { title: meeting.title, date: meeting.date, location: meeting.location }
+    });
   } catch {
     res.status(500).json({ message: 'Erro interno' });
   }

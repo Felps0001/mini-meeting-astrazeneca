@@ -7,7 +7,10 @@ const attendeeSchema = new mongoose.Schema({
   crmUf: { type: String, trim: true, uppercase: true },
   phone: { type: String, trim: true },
   city: { type: String, trim: true },
-  signature: { type: String }, // base64 da assinatura
+  signature: { type: String },
+  checkinToken: { type: String },
+  checkedIn: { type: Boolean, default: false },
+  checkedInAt: { type: Date },
   registeredAt: { type: Date, default: Date.now }
 });
 

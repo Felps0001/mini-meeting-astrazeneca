@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import api from "../services/api";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
+import { useModal } from "../context/ModalContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import "./MeetingDetail.css";
@@ -11,18 +12,41 @@ const MeetingDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isAdmin, user } = useAuth();
+  const { toast, confirm } = useModal();
   const [meeting, setMeeting] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    api
+  const loadMeeting = () => {
+    return api
       .get(`/meetings/${id}`)
       .then((res) => setMeeting(res.data))
-      .catch(() => setError("Erro ao carregar meeting"))
-      .finally(() => setLoading(false));
+      .catch(() => setError("Erro ao carregar meeting"));
+  };
+
+  useEffect(() => {
+    loadMeeting().finally(() => setLoading(false));
   }, [id]);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadMeeting().finally(() => setRefreshing(false));
+  };
+
+  const handleRemoveAttendee = async (attendeeId, attendeeName) => {
+    if (!(await confirm(`Cancelar a inscrição de ${attendeeName}?`))) return;
+    try {
+      await api.delete(`/meetings/${id}/attendees/${attendeeId}`);
+      setMeeting((prev) => ({
+        ...prev,
+        attendees: prev.attendees.filter((a) => a._id !== attendeeId),
+      }));
+    } catch (err) {
+      toast(err.response?.data?.message || "Erro ao cancelar inscrição", "error");
+    }
+  };
 
   const copyInviteLink = () => {
     const link = `${window.location.origin}${import.meta.env.BASE_URL}event/${meeting.inviteToken}`;
@@ -32,12 +56,12 @@ const MeetingDetail = () => {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm("Excluir este meeting?")) return;
+    if (!(await confirm("Excluir este meeting?"))) return;
     try {
       await api.delete(`/meetings/${id}`);
       navigate("/meetings");
     } catch (err) {
-      alert(err.response?.data?.message || "Erro ao excluir");
+      toast(err.response?.data?.message || "Erro ao excluir", "error");
     }
   };
 
@@ -46,7 +70,7 @@ const MeetingDetail = () => {
       const res = await api.put(`/meetings/${id}`, { status });
       setMeeting(res.data);
     } catch {
-      alert("Erro ao atualizar status");
+      toast("Erro ao atualizar status", "error");
     }
   };
 
@@ -155,8 +179,8 @@ const MeetingDetail = () => {
                 </button>
                 <button
                   className="btn-danger"
-                  onClick={() => {
-                    if (window.confirm("Cancelar este meeting?"))
+                  onClick={async () => {
+                    if (await confirm("Cancelar este meeting?"))
                       handleStatusChange("cancelado");
                   }}
                 >
@@ -177,7 +201,23 @@ const MeetingDetail = () => {
           </div>
 
           <div className="detail-card">
-            <h3>Participantes ({meeting.attendees.length})</h3>
+            <div className="attendees-header">
+              <h3>Participantes ({meeting.attendees.length})</h3>
+              {meeting.attendees.length > 0 && (
+                <span className="checkin-counter">
+                  ✅ {meeting.attendees.filter((a) => a.checkedIn).length}/
+                  {meeting.attendees.length} presentes
+                </span>
+              )}
+              <button
+                className="btn-small btn-refresh"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                title="Atualizar lista"
+              >
+                {refreshing ? "⏳" : "🔄"} Atualizar
+              </button>
+            </div>
             {meeting.attendees.length === 0 ? (
               <p className="empty-text">Nenhum participante inscrito ainda.</p>
             ) : (
@@ -196,9 +236,31 @@ const MeetingDetail = () => {
                         />
                       </div>
                     )}
-                    <span className="attendee-date">
-                      {format(new Date(att.registeredAt), "dd/MM HH:mm")}
-                    </span>
+                    <div className="attendee-right">
+                      <span
+                        className={`checkin-badge ${
+                          att.checkedIn
+                            ? "checkin-badge--in"
+                            : "checkin-badge--out"
+                        }`}
+                      >
+                        {att.checkedIn ? "✅ Presente" : "⏳ Aguardando"}
+                      </span>
+                      <span className="attendee-date">
+                        {format(new Date(att.registeredAt), "dd/MM HH:mm")}
+                      </span>
+                      {canEdit && (
+                        <button
+                          className="btn-remove-attendee"
+                          title="Cancelar inscrição"
+                          onClick={() =>
+                            handleRemoveAttendee(att._id, att.name)
+                          }
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

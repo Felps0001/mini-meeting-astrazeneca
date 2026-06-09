@@ -1,0 +1,115 @@
+/* ─── Toast ─────────────────────────────────────────────────── */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  min-width: 260px;
+  max-width: 380px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  pointer-events: all;
+  animation: toast-in 0.25s ease;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(30, 15, 50, 0.92);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.toast--success { border-color: rgba(46, 213, 115, 0.4); }
+.toast--error   { border-color: rgba(255, 71,  87,  0.4); }
+.toast--warning { border-color: rgba(255, 165, 0,   0.4); }
+.toast--info    { border-color: rgba(156, 39,  176, 0.4); }
+
+.toast-icon { font-size: 18px; flex-shrink: 0; }
+
+.toast-message {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text-primary, #f5e6ff);
+  line-height: 1.4;
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+.toast-close:hover { color: rgba(255, 255, 255, 0.8); }
+
+/* ─── Confirm Modal ─────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: backdrop-in 0.2s ease;
+}
+
+@keyframes backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.modal-box {
+  background: var(--bg-card, #1e0f32);
+  border: 1px solid rgba(233, 30, 140, 0.25);
+  border-radius: 16px;
+  padding: 2rem 2rem 1.5rem;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+  animation: modal-in 0.22s ease;
+}
+
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.modal-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+
+.modal-message {
+  font-size: 1rem;
+  color: var(--text-primary, #f5e6ff);
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.modal-actions .btn-secondary,
+.modal-actions .btn-danger {
+  flex: 1;
+  max-width: 160px;
+}
