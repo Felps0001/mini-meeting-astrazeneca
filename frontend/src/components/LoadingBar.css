@@ -1,0 +1,23 @@
+.loading-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 0%;
+  background: var(--gradient);
+  z-index: 99999;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.loading-bar--active {
+  opacity: 1;
+  animation: loading-bar-progress 1.8s ease-in-out infinite;
+}
+
+@keyframes loading-bar-progress {
+  0%   { width: 10%; }
+  50%  { width: 75%; }
+  100% { width: 10%; }
+}

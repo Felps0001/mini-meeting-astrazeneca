@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { ModalProvider } from "./context/ModalContext";
 import { PrivateRoute, AdminRoute } from "./components/PrivateRoute";
+import LoadingBar from "./components/LoadingBar";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
@@ -16,6 +17,7 @@ import CheckIn from "./pages/CheckIn";
 function App() {
   return (
     <ModalProvider>
+      <LoadingBar />
       <AuthProvider>
         <BrowserRouter>
         <Routes>
