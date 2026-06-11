@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import api from "../services/api";
 import Navbar from "../components/Navbar";
@@ -18,6 +18,80 @@ const MeetingDetail = () => {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const csvInputRef = useRef(null);
+
+  function parseCSV(text) {
+    const lines = text.trim().split(/\r?\n/);
+    if (lines.length < 2) return [];
+    const delimiter = lines[0].includes(';') ? ';' : ',';
+    const parseRow = (line) => {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') { inQuotes = !inQuotes; }
+        else if (ch === delimiter && !inQuotes) { result.push(current.trim()); current = ''; }
+        else { current += ch; }
+      }
+      result.push(current.trim());
+      return result;
+    };
+    const headerMap = {
+      'nome': 'name', 'name': 'name',
+      'email': 'email',
+      'crm': 'crm',
+      'uf': 'crmUf', 'crmuf': 'crmUf', 'estado': 'crmUf',
+      'telefone': 'phone', 'phone': 'phone', 'celular': 'phone', 'tel': 'phone',
+      'cidade': 'city', 'city': 'city',
+    };
+    const rawHeaders = parseRow(lines[0]);
+    const headers = rawHeaders.map(h => headerMap[h.toLowerCase().replace(/\s/g, '')] || h);
+    return lines.slice(1).filter(l => l.trim()).map(line => {
+      const values = parseRow(line);
+      const obj = {};
+      headers.forEach((h, i) => { if (h) obj[h] = values[i] || ''; });
+      return obj;
+    });
+  }
+
+  const handleCSVImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    const text = await file.text();
+    const rows = parseCSV(text);
+    if (rows.length === 0) {
+      toast('CSV vazio ou sem dados válidos', 'error');
+      return;
+    }
+    setImporting(true);
+    try {
+      const { data } = await api.post(`/meetings/${id}/attendees/bulk`, { attendees: rows });
+      const parts = [`${data.inserted} importado(s)`];
+      if (data.skipped > 0) parts.push(`${data.skipped} duplicado(s) ignorado(s)`);
+      if (data.errors.length > 0) parts.push(`${data.errors.length} erro(s)`);
+      toast(parts.join(', '), data.inserted > 0 ? 'success' : 'warning');
+      await loadMeeting();
+    } catch (err) {
+      toast(err.response?.data?.message || 'Erro ao importar CSV', 'error');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const downloadTemplate = () => {
+    const header = 'nome,email,crm,uf,telefone,cidade';
+    const example = 'João Silva,joao@email.com,123456,SP,(11) 99999-9999,São Paulo';
+    const blob = new Blob([header + '\n' + example], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'modelo-participantes.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const loadMeeting = () => {
     return api
@@ -112,6 +186,17 @@ const MeetingDetail = () => {
             {meeting.status === "ativo" && (
               <button className="btn-invite" onClick={copyInviteLink}>
                 {copied ? "✅ Copiado!" : "🔗 Copiar link de convite"}
+              </button>
+            )}
+            {meeting.status === "ativo" && (
+              <button
+                className="btn-invite btn-qr"
+                onClick={() => {
+                  const link = `${window.location.origin}${import.meta.env.BASE_URL}event/${meeting.inviteToken}/qrcode`;
+                  window.open(link, "_blank", "noopener,noreferrer");
+                }}
+              >
+                📱 QR Codes
               </button>
             )}
             {canEdit && (
@@ -217,6 +302,32 @@ const MeetingDetail = () => {
               >
                 {refreshing ? "⏳" : "🔄"} Atualizar
               </button>
+              {canEdit && (
+                <>
+                  <input
+                    ref={csvInputRef}
+                    type="file"
+                    accept=".csv,text/csv"
+                    style={{ display: 'none' }}
+                    onChange={handleCSVImport}
+                  />
+                  <button
+                    className="btn-small btn-import"
+                    onClick={() => csvInputRef.current?.click()}
+                    disabled={importing}
+                    title="Importar participantes via CSV"
+                  >
+                    {importing ? "⏳ Importando..." : "📂 Importar CSV"}
+                  </button>
+                  <button
+                    className="btn-small btn-template"
+                    onClick={downloadTemplate}
+                    title="Baixar modelo CSV"
+                  >
+                    📋 Modelo
+                  </button>
+                </>
+              )}
             </div>
             {meeting.attendees.length === 0 ? (
               <p className="empty-text">Nenhum participante inscrito ainda.</p>

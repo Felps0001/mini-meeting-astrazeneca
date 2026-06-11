@@ -13,6 +13,7 @@ import MeetingDetail from "./pages/MeetingDetail";
 import AdminUsers from "./pages/AdminUsers";
 import EventRegister from "./pages/EventRegister";
 import CheckIn from "./pages/CheckIn";
+import QRLookup from "./pages/QRLookup";
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
           <Route path="/register/:token" element={<Register />} />
           <Route path="/event/:token" element={<EventRegister />} />
           <Route path="/checkin/:token" element={<CheckIn />} />
+          <Route path="/event/:token/qrcode" element={<QRLookup />} />
 
           {/* Privadas */}
           <Route

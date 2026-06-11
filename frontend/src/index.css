@@ -124,6 +124,11 @@ body::after {
   font-weight: 600; cursor: pointer;
 }
 .btn-invite:hover { background: rgba(0,229,160,.2); }
+.btn-qr {
+  background: rgba(156,39,176,.12) !important; color: #ce93d8 !important;
+  border-color: rgba(156,39,176,.35) !important;
+}
+.btn-qr:hover { background: rgba(156,39,176,.22) !important; }
 
 .btn-icon {
   background: none; border: none; font-size: 18px; cursor: pointer;

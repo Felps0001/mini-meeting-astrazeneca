@@ -1,0 +1,98 @@
+import React, { useEffect, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
+import { QRCodeSVG } from "qrcode.react";
+import api from "../services/api";
+import logoAstra from "../assets/logo-astra.png";
+import "./QRLookup.css";
+
+const QRLookup = () => {
+  const { token } = useParams();
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [eventTitle, setEventTitle] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [message, setMessage] = useState("");
+  const debounceRef = useRef(null);
+
+  const checkinBase = `${window.location.origin}${import.meta.env.BASE_URL}checkin/`;
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 3) {
+      setResults([]);
+      setMessage(q.length > 0 ? "Digite ao menos 3 caracteres" : "");
+      return;
+    }
+
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true);
+      setMessage("");
+      try {
+        const { data } = await api.get(`/meetings/invite/${token}/lookup?q=${encodeURIComponent(q)}`);
+        setEventTitle(data.eventTitle);
+        setResults(data.results);
+        if (data.results.length === 0) setMessage("Nenhum participante encontrado");
+      } catch (err) {
+        setMessage(err.response?.data?.message || "Erro ao buscar");
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(debounceRef.current);
+  }, [query, token]);
+
+  return (
+    <div className="qrlookup-page">
+      <div className="qrlookup-card">
+        <div className="qrlookup-header">
+          <img src={logoAstra} alt="AstraZeneca" className="qrlookup-logo" />
+          <h1>Meu QR Code</h1>
+          {eventTitle && <p className="qrlookup-event">{eventTitle}</p>}
+          <p className="qrlookup-subtitle">
+            Digite seu nome ou e-mail para encontrar seu QR Code de check-in
+          </p>
+        </div>
+
+        <div className="qrlookup-search">
+          <input
+            type="text"
+            placeholder="Buscar por nome ou e-mail..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            autoFocus
+          />
+          {searching && <span className="qrlookup-spinner">⏳</span>}
+        </div>
+
+        {message && <p className="qrlookup-msg">{message}</p>}
+
+        <div className="qrlookup-results">
+          {results.map((r) => (
+            <div key={r.id} className={`qrlookup-result${r.checkedIn ? " qrlookup-result--checkedin" : ""}`}>
+              <div className="qrlookup-info">
+                <strong>{r.name}</strong>
+                <span>{r.email}</span>
+                {r.checkedIn && <span className="qrlookup-badge">✅ Check-in realizado</span>}
+              </div>
+              <div className="qrlookup-qr">
+                <QRCodeSVG
+                  value={`${checkinBase}${r.checkinToken}`}
+                  size={130}
+                  bgColor="transparent"
+                  fgColor="#ffffff"
+                  level="M"
+                />
+                <p className="qrlookup-qr-hint">Apresente na entrada</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default QRLookup;

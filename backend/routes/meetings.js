@@ -182,6 +182,90 @@ router.delete('/:id/attendees/:attendeeId', authMiddleware, async (req, res) => 
   }
 });
 
+// POST /api/meetings/:id/attendees/bulk - importar participantes via CSV
+router.post('/:id/attendees/bulk', authMiddleware, async (req, res) => {
+  try {
+    const meeting = await MiniMeeting.findById(req.params.id);
+    if (!meeting) return res.status(404).json({ message: 'Meeting não encontrado' });
+
+    if (req.user.role !== 'admin' && meeting.organizer.toString() !== req.user.id)
+      return res.status(403).json({ message: 'Acesso negado' });
+
+    const { attendees } = req.body;
+    if (!Array.isArray(attendees) || attendees.length === 0)
+      return res.status(400).json({ message: 'Lista de participantes inválida' });
+
+    if (attendees.length > 500)
+      return res.status(400).json({ message: 'Máximo de 500 participantes por importação' });
+
+    let inserted = 0;
+    let skipped = 0;
+    const errors = [];
+
+    for (let i = 0; i < attendees.length; i++) {
+      const { name, email, crm, crmUf, phone, city } = attendees[i];
+      const row = i + 2;
+
+      if (!name || !email) {
+        errors.push(`Linha ${row}: nome e email são obrigatórios`);
+        continue;
+      }
+
+      const emailLower = String(email).toLowerCase().trim();
+      if (meeting.attendees.find(a => a.email === emailLower)) {
+        skipped++;
+        continue;
+      }
+
+      meeting.attendees.push({
+        name: String(name).trim(),
+        email: emailLower,
+        crm: crm ? String(crm).replace(/\D/g, '') : undefined,
+        crmUf: crmUf ? String(crmUf).trim().toUpperCase() : undefined,
+        phone: phone ? String(phone).trim() : undefined,
+        city: city ? String(city).trim() : undefined,
+        checkinToken: uuidv4()
+      });
+      inserted++;
+    }
+
+    await meeting.save();
+    res.json({ inserted, skipped, errors });
+  } catch {
+    res.status(500).json({ message: 'Erro interno' });
+  }
+});
+
+// GET /api/meetings/invite/:token/lookup?q= - busca pública de participante pelo nome/email
+router.get('/invite/:token/lookup', async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    if (q.length < 3)
+      return res.status(400).json({ message: 'Digite ao menos 3 caracteres' });
+
+    const meeting = await MiniMeeting.findOne({ inviteToken: req.params.token })
+      .select('title attendees status');
+    if (!meeting)
+      return res.status(404).json({ message: 'Evento não encontrado' });
+
+    const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    const matches = meeting.attendees
+      .filter(a => regex.test(a.name) || regex.test(a.email))
+      .slice(0, 8)
+      .map(a => ({
+        id: a._id,
+        name: a.name,
+        email: a.email.replace(/(.{2}).+(@.+)/, '$1***$2'),
+        checkinToken: a.checkinToken,
+        checkedIn: a.checkedIn,
+      }));
+
+    res.json({ eventTitle: meeting.title, results: matches });
+  } catch {
+    res.status(500).json({ message: 'Erro interno' });
+  }
+});
+
 // GET /api/meetings/invite/:token - dados públicos para formulário de inscrição
 router.get('/invite/:token', async (req, res) => {
   try {
