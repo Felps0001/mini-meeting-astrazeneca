@@ -12,6 +12,7 @@ const QRLookup = () => {
   const [eventTitle, setEventTitle] = useState("");
   const [searching, setSearching] = useState(false);
   const [message, setMessage] = useState("");
+  const [checkingIn, setCheckingIn] = useState(null); // id do attendee em processo
   const debounceRef = useRef(null);
 
   const checkinBase = `${window.location.origin}${import.meta.env.BASE_URL}checkin/`;
@@ -29,10 +30,13 @@ const QRLookup = () => {
       setSearching(true);
       setMessage("");
       try {
-        const { data } = await api.get(`/meetings/invite/${token}/lookup?q=${encodeURIComponent(q)}`);
+        const { data } = await api.get(
+          `/meetings/invite/${token}/lookup?q=${encodeURIComponent(q)}`,
+        );
         setEventTitle(data.eventTitle);
         setResults(data.results);
-        if (data.results.length === 0) setMessage("Nenhum participante encontrado");
+        if (data.results.length === 0)
+          setMessage("Nenhum participante encontrado");
       } catch (err) {
         setMessage(err.response?.data?.message || "Erro ao buscar");
         setResults([]);
@@ -43,6 +47,41 @@ const QRLookup = () => {
 
     return () => clearTimeout(debounceRef.current);
   }, [query, token]);
+
+  const handleCheckIn = async (r) => {
+    if (r.checkedIn || checkingIn) return;
+    setCheckingIn(r.id);
+    try {
+      const { data } = await api.post(`/meetings/checkin/${r.checkinToken}`);
+      setResults((prev) =>
+        prev.map((item) =>
+          item.id === r.id
+            ? {
+                ...item,
+                checkedIn: true,
+                checkInMsg: data.alreadyCheckedIn
+                  ? "Já registrado"
+                  : "Check-in feito!",
+              }
+            : item,
+        ),
+      );
+    } catch (err) {
+      setResults((prev) =>
+        prev.map((item) =>
+          item.id === r.id
+            ? {
+                ...item,
+                checkInError:
+                  err.response?.data?.message || "Erro ao fazer check-in",
+              }
+            : item,
+        ),
+      );
+    } finally {
+      setCheckingIn(null);
+    }
+  };
 
   return (
     <div className="qrlookup-page">
@@ -71,11 +110,34 @@ const QRLookup = () => {
 
         <div className="qrlookup-results">
           {results.map((r) => (
-            <div key={r.id} className={`qrlookup-result${r.checkedIn ? " qrlookup-result--checkedin" : ""}`}>
+            <div
+              key={r.id}
+              className={`qrlookup-result${r.checkedIn ? " qrlookup-result--checkedin" : ""}`}
+            >
               <div className="qrlookup-info">
                 <strong>{r.name}</strong>
                 <span>{r.email}</span>
-                {r.checkedIn && <span className="qrlookup-badge">✅ Check-in realizado</span>}
+                {r.checkedIn && (
+                  <span className="qrlookup-badge">
+                    ✅ {r.checkInMsg || "Check-in realizado"}
+                  </span>
+                )}
+                {r.checkInError && (
+                  <span className="qrlookup-badge qrlookup-badge--error">
+                    ❌ {r.checkInError}
+                  </span>
+                )}
+                {!r.checkedIn && (
+                  <button
+                    className="qrlookup-checkin-btn"
+                    onClick={() => handleCheckIn(r)}
+                    disabled={!!checkingIn}
+                  >
+                    {checkingIn === r.id
+                      ? "⏳ Aguarde..."
+                      : "✅ Fazer Check-in"}
+                  </button>
+                )}
               </div>
               <div className="qrlookup-qr">
                 <QRCodeSVG

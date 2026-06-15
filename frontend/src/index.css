@@ -129,6 +129,11 @@ body::after {
   border-color: rgba(156,39,176,.35) !important;
 }
 .btn-qr:hover { background: rgba(156,39,176,.22) !important; }
+.btn-scan {
+  background: rgba(255, 179, 0, 0.12) !important; color: #ffb300 !important;
+  border-color: rgba(255, 179, 0, 0.35) !important;
+}
+.btn-scan:hover { background: rgba(255, 179, 0, 0.22) !important; }
 
 .btn-icon {
   background: none; border: none; font-size: 18px; cursor: pointer;

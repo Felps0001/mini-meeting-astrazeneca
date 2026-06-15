@@ -24,71 +24,96 @@ const MeetingDetail = () => {
   function parseCSV(text) {
     const lines = text.trim().split(/\r?\n/);
     if (lines.length < 2) return [];
-    const delimiter = lines[0].includes(';') ? ';' : ',';
+    const delimiter = lines[0].includes(";") ? ";" : ",";
     const parseRow = (line) => {
       const result = [];
-      let current = '';
+      let current = "";
       let inQuotes = false;
       for (let i = 0; i < line.length; i++) {
         const ch = line[i];
-        if (ch === '"') { inQuotes = !inQuotes; }
-        else if (ch === delimiter && !inQuotes) { result.push(current.trim()); current = ''; }
-        else { current += ch; }
+        if (ch === '"') {
+          inQuotes = !inQuotes;
+        } else if (ch === delimiter && !inQuotes) {
+          result.push(current.trim());
+          current = "";
+        } else {
+          current += ch;
+        }
       }
       result.push(current.trim());
       return result;
     };
     const headerMap = {
-      'nome': 'name', 'name': 'name',
-      'email': 'email',
-      'crm': 'crm',
-      'uf': 'crmUf', 'crmuf': 'crmUf', 'estado': 'crmUf',
-      'telefone': 'phone', 'phone': 'phone', 'celular': 'phone', 'tel': 'phone',
-      'cidade': 'city', 'city': 'city',
+      nome: "name",
+      name: "name",
+      email: "email",
+      crm: "crm",
+      uf: "crmUf",
+      crmuf: "crmUf",
+      estado: "crmUf",
+      telefone: "phone",
+      phone: "phone",
+      celular: "phone",
+      tel: "phone",
+      cidade: "city",
+      city: "city",
     };
     const rawHeaders = parseRow(lines[0]);
-    const headers = rawHeaders.map(h => headerMap[h.toLowerCase().replace(/\s/g, '')] || h);
-    return lines.slice(1).filter(l => l.trim()).map(line => {
-      const values = parseRow(line);
-      const obj = {};
-      headers.forEach((h, i) => { if (h) obj[h] = values[i] || ''; });
-      return obj;
-    });
+    const headers = rawHeaders.map(
+      (h) => headerMap[h.toLowerCase().replace(/\s/g, "")] || h,
+    );
+    return lines
+      .slice(1)
+      .filter((l) => l.trim())
+      .map((line) => {
+        const values = parseRow(line);
+        const obj = {};
+        headers.forEach((h, i) => {
+          if (h) obj[h] = values[i] || "";
+        });
+        return obj;
+      });
   }
 
   const handleCSVImport = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    e.target.value = '';
+    e.target.value = "";
     const text = await file.text();
     const rows = parseCSV(text);
     if (rows.length === 0) {
-      toast('CSV vazio ou sem dados válidos', 'error');
+      toast("CSV vazio ou sem dados válidos", "error");
       return;
     }
     setImporting(true);
     try {
-      const { data } = await api.post(`/meetings/${id}/attendees/bulk`, { attendees: rows });
+      const { data } = await api.post(`/meetings/${id}/attendees/bulk`, {
+        attendees: rows,
+      });
       const parts = [`${data.inserted} importado(s)`];
-      if (data.skipped > 0) parts.push(`${data.skipped} duplicado(s) ignorado(s)`);
+      if (data.skipped > 0)
+        parts.push(`${data.skipped} duplicado(s) ignorado(s)`);
       if (data.errors.length > 0) parts.push(`${data.errors.length} erro(s)`);
-      toast(parts.join(', '), data.inserted > 0 ? 'success' : 'warning');
+      toast(parts.join(", "), data.inserted > 0 ? "success" : "warning");
       await loadMeeting();
     } catch (err) {
-      toast(err.response?.data?.message || 'Erro ao importar CSV', 'error');
+      toast(err.response?.data?.message || "Erro ao importar CSV", "error");
     } finally {
       setImporting(false);
     }
   };
 
   const downloadTemplate = () => {
-    const header = 'nome,email,crm,uf,telefone,cidade';
-    const example = 'João Silva,joao@email.com,123456,SP,(11) 99999-9999,São Paulo';
-    const blob = new Blob([header + '\n' + example], { type: 'text/csv;charset=utf-8;' });
+    const header = "nome,email,crm,uf,telefone,cidade";
+    const example =
+      "João Silva,joao@email.com,123456,SP,(11) 99999-9999,São Paulo";
+    const blob = new Blob([header + "\n" + example], {
+      type: "text/csv;charset=utf-8;",
+    });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'modelo-participantes.csv';
+    a.download = "modelo-participantes.csv";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -118,7 +143,10 @@ const MeetingDetail = () => {
         attendees: prev.attendees.filter((a) => a._id !== attendeeId),
       }));
     } catch (err) {
-      toast(err.response?.data?.message || "Erro ao cancelar inscrição", "error");
+      toast(
+        err.response?.data?.message || "Erro ao cancelar inscrição",
+        "error",
+      );
     }
   };
 
@@ -198,6 +226,11 @@ const MeetingDetail = () => {
               >
                 📱 QR Codes
               </button>
+            )}
+            {canEdit && (
+              <Link to={`/meetings/${id}/scan`} className="btn-invite btn-scan">
+                📷 Escanear QR
+              </Link>
             )}
             {canEdit && (
               <Link to={`/meetings/${id}/edit`} className="btn-secondary">
@@ -308,7 +341,7 @@ const MeetingDetail = () => {
                     ref={csvInputRef}
                     type="file"
                     accept=".csv,text/csv"
-                    style={{ display: 'none' }}
+                    style={{ display: "none" }}
                     onChange={handleCSVImport}
                   />
                   <button
