@@ -106,44 +106,37 @@ const EventRegister = () => {
     setCrmError("");
 
     debounceRef.current = setTimeout(async () => {
-      // 1st attempt: call CFM directly from the browser (user IP, not server IP)
-      try {
-        const cfmRes = await fetch(
-          `https://www.sistemas.cfm.org.br/api/publico/consulta/medico/${crm}/${uf}`,
-          {
-            headers: { Accept: "application/json" },
-            signal: AbortSignal.timeout(8000),
-          },
-        );
-        if (cfmRes.status === 404) {
-          setCrmStatus("invalid");
-          setCrmError("CRM não encontrado para esta UF");
-          return;
-        }
-        if (cfmRes.ok) {
-          const data = await cfmRes.json();
-          setCrmStatus("valid");
-          setCrmDoctorName(data.nomeMedico || "");
-          return;
-        }
-      } catch {
-        // CORS or network error — try backend proxy
-      }
-
-      // 2nd attempt: backend proxy
+      // Validação no backend. Solução B: se o CFM confirmar => válido; se o CRM não
+      // existir => inválido (bloqueia); se a fonte estiver fora => permite seguir,
+      // mas marcado como "não verificado" (revisado pelo admin depois).
       try {
         const res = await api.get(`/meetings/validate-crm?crm=${crm}&uf=${uf}`);
-        if (res.data.valid) {
+        if (res.data.valid && res.data.verified) {
           setCrmStatus("valid");
           setCrmDoctorName(res.data.name || "");
+        } else if (res.data.valid) {
+          setCrmStatus("unverified");
+          setCrmError(
+            res.data.message ||
+              "CRM não pôde ser confirmado agora — sua inscrição será registrada e revisada.",
+          );
         } else {
           setCrmStatus("invalid");
           setCrmError(res.data.message || "CRM não encontrado");
         }
-      } catch {
-        // Both failed — accept by format silently
-        setCrmStatus("valid");
-        setCrmDoctorName("");
+      } catch (err) {
+        // Erro de formato (400) bloqueia; demais falhas deixam o backend decidir.
+        if (err.response?.status === 400) {
+          setCrmStatus("invalid");
+          setCrmError(
+            err.response?.data?.message || "Número de CRM inválido",
+          );
+        } else {
+          setCrmStatus("unverified");
+          setCrmError(
+            "CRM não pôde ser confirmado agora — sua inscrição será registrada e revisada.",
+          );
+        }
       }
     }, 700);
 
@@ -152,7 +145,7 @@ const EventRegister = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (crmStatus !== "valid") {
+    if (crmStatus !== "valid" && crmStatus !== "unverified") {
       setError("Verifique o CRM antes de confirmar a inscrição");
       return;
     }
@@ -367,6 +360,9 @@ const EventRegister = () => {
                 ✔ CRM válido{crmDoctorName ? ` — ${crmDoctorName}` : ""}
               </p>
             )}{" "}
+            {crmStatus === "unverified" && (
+              <p className="crm-status crm-warning">⚠ {crmError}</p>
+            )}
             {(crmStatus === "invalid" || crmStatus === "error") && (
               <p className="crm-status crm-invalid">✖ {crmError}</p>
             )}
@@ -378,7 +374,8 @@ const EventRegister = () => {
             type="submit"
             className="btn-primary btn-full"
             disabled={
-              submitting || crmStatus === "checking" || crmStatus === "idle"
+              submitting ||
+              !(crmStatus === "valid" || crmStatus === "unverified")
             }
           >
             {submitting

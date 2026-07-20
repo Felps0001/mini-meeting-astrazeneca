@@ -371,6 +371,19 @@ const MeetingDetail = () => {
                     <div className="attendee-info">
                       <strong>{att.name}</strong>
                       <span>{att.email}</span>
+                      {att.crm && (
+                        <span className="attendee-crm">
+                          CRM {att.crm}/{att.crmUf}
+                          {att.crmVerified === false && (
+                            <span
+                              className="crm-unverified-badge"
+                              title="O CRM não pôde ser confirmado no CFM no momento da inscrição. Revise manualmente."
+                            >
+                              ⚠ não verificado
+                            </span>
+                          )}
+                        </span>
+                      )}
                     </div>
                     {att.signature && (
                       <div className="attendee-signature">

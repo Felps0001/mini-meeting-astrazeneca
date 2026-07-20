@@ -5,6 +5,7 @@ const attendeeSchema = new mongoose.Schema({
   email: { type: String, required: true, lowercase: true, trim: true },
   crm: { type: String, trim: true },
   crmUf: { type: String, trim: true, uppercase: true },
+  crmVerified: { type: Boolean },
   phone: { type: String, trim: true },
   city: { type: String, trim: true },
   signature: { type: String },

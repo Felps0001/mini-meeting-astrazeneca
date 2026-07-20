@@ -59,6 +59,16 @@
 .attendee-info { display: flex; flex-direction: column; flex: 1; }
 .attendee-info strong { font-size: 14px; color: var(--text-main); }
 .attendee-info span { font-size: 12px; color: var(--text-muted); }
+.attendee-crm { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.crm-unverified-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #fbbf24;
+  background: #fbbf2414;
+  border: 1px solid #fbbf2433;
+  border-radius: 6px;
+  padding: 1px 6px;
+}
 .attendee-signature {
   width: 120px; height: 50px; border: 1px solid var(--border);
   border-radius: 6px; overflow: hidden; background: rgba(255,255,255,.05);

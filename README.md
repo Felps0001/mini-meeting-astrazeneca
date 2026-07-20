@@ -72,6 +72,11 @@ EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_USER=seu@email.com
 EMAIL_PASS=sua-senha-de-app
+
+# Validação real de CRM (Infosimples). Sem este token a validação fica
+# indisponível (retorna 503), pois a API pública do CFM exige reCAPTCHA.
+# Crie a conta em https://api.infosimples.com/cadastro e cole o token aqui.
+INFOSIMPLES_TOKEN=LVRLYi_brpi1FwPy9SHO-bycvCz0wNTzM3kdFoB0
 ```
 
 > Se o e-mail não estiver configurado, o link de convite ainda aparece na tela do admin para ser copiado manualmente.

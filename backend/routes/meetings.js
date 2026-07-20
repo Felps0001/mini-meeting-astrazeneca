@@ -18,31 +18,127 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/meetings/validate-crm?crm=123456&uf=SP  — proxy para API pública do CFM
+// GET /api/meetings/validate-crm?crm=123456&uf=SP  — validação real de CRM (backend-only)
 const VALID_UFS = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT',
   'PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'];
 
-async function verifyCRM(crmNum, ufUpper) {
-  try {
-    const { data, status } = await axios.get(
-      `https://www.sistemas.cfm.org.br/api/publico/consulta/medico/${crmNum}/${ufUpper}`,
-      {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          'Accept': 'application/json, text/plain, */*',
-          'Referer': 'https://portal.cfm.org.br/',
-          'Origin': 'https://portal.cfm.org.br'
-        },
-        timeout: 10000,
-        validateStatus: () => true
+// Cache em memória para evitar reconsultar o mesmo CRM repetidamente.
+// Resultados válidos/invalidos são cacheados; indisponibilidade não é cacheada.
+const CRM_CACHE_TTL_VALID = 7 * 24 * 60 * 60 * 1000; // 7 dias
+const CRM_CACHE_TTL_INVALID = 60 * 60 * 1000;        // 1 hora
+const crmCache = new Map();
+
+function getCachedCRM(key) {
+  const entry = crmCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    crmCache.delete(key);
+    return null;
+  }
+  return entry.result;
+}
+
+function setCachedCRM(key, result) {
+  if (result.unavailable) return; // nunca cacheia indisponibilidade
+  const ttl = result.valid ? CRM_CACHE_TTL_VALID : CRM_CACHE_TTL_INVALID;
+  crmCache.set(key, { result, expiresAt: Date.now() + ttl });
+}
+
+// Fonte 1 (gratuita): API pública do CFM. Faz algumas tentativas pois é instável.
+async function fetchFromCFM(crmNum, ufUpper) {
+  const attempts = 3;
+  let sawError = false;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const { data, status } = await axios.get(
+        `https://www.sistemas.cfm.org.br/api/publico/consulta/medico/${crmNum}/${ufUpper}`,
+        {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Referer': 'https://portal.cfm.org.br/',
+            'Origin': 'https://portal.cfm.org.br'
+          },
+          timeout: 10000,
+          validateStatus: () => true
+        }
+      );
+      if (status === 404) return { valid: false, message: 'CRM não encontrado para esta UF' };
+      if (status === 200 && data) {
+        return { valid: true, name: data.nomeMedico || null, situation: data.situacao || null };
       }
-    );
-    if (status === 404) return { valid: false, message: 'CRM não encontrado para esta UF' };
-    if (status !== 200) return { unavailable: true };
-    return { valid: true, name: data.nomeMedico || null, situation: data.situacao || null };
+      sawError = true; // status inesperado (403/429/5xx) — tenta de novo
+    } catch {
+      sawError = true; // timeout / rede — tenta de novo
+    }
+  }
+  return { unavailable: true, sawError };
+}
+
+// Fonte 2 (paga): Infosimples. É usada como fonte primária quando INFOSIMPLES_TOKEN
+// está configurado, pois a API pública gratuita do CFM passou a exigir reCAPTCHA e
+// não funciona mais para validação servidor-a-servidor.
+// Doc: https://api.infosimples.com/consultas/docs/pt-BR/cfm/cadastro.md
+async function fetchFromInfosimples(crmNum, ufUpper) {
+  const token = process.env.INFOSIMPLES_TOKEN;
+  if (!token) return { unavailable: true };
+  const url = process.env.INFOSIMPLES_CRM_URL
+    || 'https://api.infosimples.com/api/v2/consultas/cfm/cadastro';
+  try {
+    const body = new URLSearchParams({
+      token,
+      inscricao: crmNum,
+      uf: ufUpper,
+      timeout: '60'
+    });
+    const { data, status } = await axios.post(url, body.toString(), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      timeout: 70000,
+      validateStatus: () => true
+    });
+    if (status !== 200 || !data) return { unavailable: true };
+
+    // code 200 = sucesso. data[] preenchido = médico encontrado.
+    if (data.code === 200 && Array.isArray(data.data) && data.data.length > 0) {
+      const rec = data.data[0];
+      return { valid: true, name: rec.nome || null, situation: rec.situacao || null };
+    }
+    // 200 sem dados ou 612 = consulta sem resultados => CRM não encontrado.
+    if (data.code === 200 || data.code === 612) {
+      return { valid: false, message: 'CRM não encontrado para esta UF' };
+    }
+    // Demais códigos 6xx/7xx = fonte indisponível/instável => não confirma.
+    return { unavailable: true };
   } catch {
     return { unavailable: true };
   }
+}
+
+async function verifyCRM(crmNum, ufUpper) {
+  const key = `${ufUpper}:${crmNum}`;
+  const cached = getCachedCRM(key);
+  if (cached) return cached;
+
+  // Com token configurado, a Infosimples é a fonte real (a API pública do CFM
+  // exige reCAPTCHA e não valida mais). Sem token, tenta o CFM legado (que tende
+  // a ficar indisponível e resultará em 503 — sem aceitar CRM por engano).
+  let result;
+  if (process.env.INFOSIMPLES_TOKEN) {
+    // A fonte do CFM (via Infosimples) é lenta e instável e frequentemente
+    // devolve timeout (code 605). Como uma nova tentativa costuma resolver,
+    // repetimos algumas vezes enquanto o resultado vier como indisponível.
+    const attempts = 3;
+    for (let i = 0; i < attempts; i++) {
+      result = await fetchFromInfosimples(crmNum, ufUpper);
+      if (!result.unavailable) break;
+      if (i < attempts - 1) await new Promise((r) => setTimeout(r, 1500));
+    }
+  } else {
+    result = await fetchFromCFM(crmNum, ufUpper);
+  }
+
+  setCachedCRM(key, result);
+  return result;
 }
 
 router.get('/validate-crm', async (req, res) => {
@@ -60,10 +156,22 @@ router.get('/validate-crm', async (req, res) => {
 
   const result = await verifyCRM(crmNum, ufUpper);
 
+  // Fonte indisponível (ex.: CFM lento): não bloqueia. Permite seguir, mas sinaliza
+  // que o CRM não pôde ser confirmado (será marcado como não verificado).
   if (result.unavailable)
-    return res.json({ valid: true });
+    return res.json({
+      valid: true,
+      verified: false,
+      unverified: true,
+      message: 'CRM não pôde ser confirmado no CFM agora — a inscrição será registrada e revisada.'
+    });
 
-  return res.json(result);
+  // CRM realmente não encontrado: bloqueia.
+  if (result.valid === false)
+    return res.json({ valid: false, message: result.message || 'CRM não encontrado' });
+
+  // Confirmado no CFM.
+  return res.json({ valid: true, verified: true, name: result.name || null });
 });
 
 // GET /api/meetings/:id
@@ -313,10 +421,14 @@ router.post('/invite/:token/register', async (req, res) => {
     if (!VALID_UFS.includes(ufUpper))
       return res.status(400).json({ message: 'UF inválida' });
 
-    // Validate CRM with CFM
+    // Validação real de CRM (solução B):
+    // - CRM realmente não encontrado => bloqueia.
+    // - Fonte indisponível (CFM lento/fora) => aceita e marca como não verificado.
+    // - Confirmado => marca como verificado.
     const cfmResult = await verifyCRM(crmNum, ufUpper);
-    if (!cfmResult.unavailable && cfmResult.valid === false)
+    if (cfmResult.valid === false)
       return res.status(400).json({ message: cfmResult.message || 'CRM não encontrado ou inválido no CFM' });
+    const crmVerified = cfmResult.valid === true;
 
     const meeting = await MiniMeeting.findOne({ inviteToken: req.params.token });
     if (!meeting || meeting.status !== 'ativo')
@@ -326,7 +438,7 @@ router.post('/invite/:token/register', async (req, res) => {
     if (alreadyRegistered)
       return res.status(400).json({ message: 'Este email já está inscrito neste evento' });
 
-    meeting.attendees.push({ name, email: email.toLowerCase(), phone, city, crm: crmNum, crmUf: ufUpper, checkinToken: uuidv4() });
+    meeting.attendees.push({ name, email: email.toLowerCase(), phone, city, crm: crmNum, crmUf: ufUpper, crmVerified, checkinToken: uuidv4() });
     await meeting.save();
 
     const newAttendee = meeting.attendees[meeting.attendees.length - 1];
