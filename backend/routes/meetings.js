@@ -3,6 +3,7 @@ const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const MiniMeeting = require('../models/MiniMeeting');
+const Doctor = require('../models/Doctor');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 
 // GET /api/meetings - admin vê todos, user vê só os seus
@@ -101,7 +102,15 @@ async function fetchFromInfosimples(crmNum, ufUpper) {
     // code 200 = sucesso. data[] preenchido = médico encontrado.
     if (data.code === 200 && Array.isArray(data.data) && data.data.length > 0) {
       const rec = data.data[0];
-      return { valid: true, name: rec.nome || null, situation: rec.situacao || null };
+      return {
+        valid: true,
+        name: rec.nome || null,
+        situation: rec.situacao || null,
+        graduationYear: rec.ano_formatura || null,
+        graduationInstitution: rec.instituicao_graduacao || null,
+        specialty: rec.especialidade || null,
+        registrationDate: rec.inscricao_data || null
+      };
     }
     // 200 sem dados ou 612 = consulta sem resultados => CRM não encontrado.
     if (data.code === 200 || data.code === 612) {
@@ -118,6 +127,27 @@ async function verifyCRM(crmNum, ufUpper) {
   const key = `${ufUpper}:${crmNum}`;
   const cached = getCachedCRM(key);
   if (cached) return cached;
+
+  // Cache persistente: se o médico já foi validado antes (collection Doctor),
+  // reaproveita sem reconsultar o CFM.
+  try {
+    const known = await Doctor.findOne({ crm: crmNum, crmUf: ufUpper });
+    if (known && known.crmVerified) {
+      const result = {
+        valid: true,
+        verified: true,
+        name: known.name || null,
+        situation: known.situation || null,
+        specialty: known.specialty || null,
+        graduationInstitution: known.graduationInstitution || null,
+        graduationYear: known.graduationYear || null,
+        registrationDate: known.registrationDate || null,
+        fromCache: true
+      };
+      setCachedCRM(key, result);
+      return result;
+    }
+  } catch { /* falha ao ler cache persistente não deve bloquear a validação */ }
 
   // Com token configurado, a Infosimples é a fonte real (a API pública do CFM
   // exige reCAPTCHA e não valida mais). Sem token, tenta o CFM legado (que tende
@@ -138,6 +168,14 @@ async function verifyCRM(crmNum, ufUpper) {
   }
 
   setCachedCRM(key, result);
+
+  // Persiste/atualiza o médico quando a validação foi confirmada de verdade.
+  if (result.valid === true) {
+    try {
+      await Doctor.upsertFromValidation(crmNum, ufUpper, { ...result, verified: true });
+    } catch { /* não bloquear o fluxo por erro ao gravar o cache persistente */ }
+  }
+
   return result;
 }
 
@@ -170,8 +208,22 @@ router.get('/validate-crm', async (req, res) => {
   if (result.valid === false)
     return res.json({ valid: false, message: result.message || 'CRM não encontrado' });
 
-  // Confirmado no CFM.
-  return res.json({ valid: true, verified: true, name: result.name || null });
+  // Confirmado no CFM. Retorna os dados públicos do médico para exibir no card.
+  return res.json({
+    valid: true,
+    verified: true,
+    name: result.name || null,
+    doctor: {
+      name: result.name || null,
+      situation: result.situation || null,
+      specialty: result.specialty || null,
+      graduationInstitution: result.graduationInstitution || null,
+      graduationYear: result.graduationYear || null,
+      registrationDate: result.registrationDate || null,
+      crm: crmNum,
+      crmUf: ufUpper
+    }
+  });
 });
 
 // GET /api/meetings/:id
@@ -441,6 +493,14 @@ router.post('/invite/:token/register', async (req, res) => {
     meeting.attendees.push({ name, email: email.toLowerCase(), phone, city, crm: crmNum, crmUf: ufUpper, crmVerified, checkinToken: uuidv4() });
     await meeting.save();
 
+    // Registra a inscrição na collection de médicos (estatísticas + contato).
+    try {
+      await Doctor.recordRegistration({
+        crmNum, ufUpper, meetingId: meeting._id, meetingTitle: meeting.title,
+        name, email, phone, city
+      });
+    } catch { /* estatística não deve quebrar a inscrição */ }
+
     const newAttendee = meeting.attendees[meeting.attendees.length - 1];
     res.json({ message: 'Inscrição realizada com sucesso!', checkinToken: newAttendee.checkinToken });
   } catch {
@@ -469,6 +529,13 @@ router.post('/checkin/:checkinToken', async (req, res) => {
     attendee.checkedIn = true;
     attendee.checkedInAt = new Date();
     await meeting.save();
+
+    // Contabiliza a presença na collection de médicos.
+    if (attendee.crm && attendee.crmUf) {
+      try {
+        await Doctor.recordAttendance({ crmNum: attendee.crm, ufUpper: attendee.crmUf, meetingId: meeting._id });
+      } catch { /* estatística não deve quebrar o check-in */ }
+    }
 
     res.json({
       message: 'Check-in realizado com sucesso!',

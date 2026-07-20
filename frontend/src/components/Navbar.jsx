@@ -37,6 +37,11 @@ const Navbar = () => {
               Usuários
             </NavLink>
           )}
+          {isAdmin && (
+            <NavLink to="/admin/doctors" onClick={closeMenu} className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+              Médicos
+            </NavLink>
+          )}
         </div>
         <div className="navbar-user">
           <span className="user-badge">{user?.role === 'admin' ? '👑 Admin' : '👤 ' + user?.name}</span>

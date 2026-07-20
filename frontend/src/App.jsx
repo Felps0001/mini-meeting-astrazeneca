@@ -11,6 +11,7 @@ import Meetings from "./pages/Meetings";
 import MeetingForm from "./pages/MeetingForm";
 import MeetingDetail from "./pages/MeetingDetail";
 import AdminUsers from "./pages/AdminUsers";
+import Doctors from "./pages/Doctors";
 import EventRegister from "./pages/EventRegister";
 import CheckIn from "./pages/CheckIn";
 import QRLookup from "./pages/QRLookup";
@@ -86,6 +87,14 @@ function App() {
               element={
                 <AdminRoute>
                   <AdminUsers />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/doctors"
+              element={
+                <AdminRoute>
+                  <Doctors />
                 </AdminRoute>
               }
             />

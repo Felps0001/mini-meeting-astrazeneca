@@ -69,6 +69,8 @@ const EventRegister = () => {
   // CRM validation: 'idle' | 'checking' | 'valid' | 'invalid' | 'error'
   const [crmStatus, setCrmStatus] = useState("idle");
   const [crmDoctorName, setCrmDoctorName] = useState("");
+  const [crmDoctor, setCrmDoctor] = useState(null);
+  const [crmConfirmed, setCrmConfirmed] = useState(false);
   const [crmError, setCrmError] = useState("");
   const debounceRef = useRef(null);
 
@@ -86,6 +88,10 @@ const EventRegister = () => {
   useEffect(() => {
     const crm = form.crm.replace(/\D/g, "");
     const uf = form.crmUf;
+
+    // Qualquer mudança no CRM/UF invalida a confirmação anterior.
+    setCrmConfirmed(false);
+    setCrmDoctor(null);
 
     if (!crm || !uf) {
       setCrmStatus("idle");
@@ -114,6 +120,7 @@ const EventRegister = () => {
         if (res.data.valid && res.data.verified) {
           setCrmStatus("valid");
           setCrmDoctorName(res.data.name || "");
+          setCrmDoctor(res.data.doctor || { name: res.data.name || "" });
         } else if (res.data.valid) {
           setCrmStatus("unverified");
           setCrmError(
@@ -164,6 +171,15 @@ const EventRegister = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Confirma que o médico do card é o correto e libera os campos de contato,
+  // já pré-preenchendo o nome oficial do CFM.
+  const handleConfirmDoctor = () => {
+    if (crmDoctor?.name) {
+      setForm((p) => ({ ...p, name: crmDoctor.name }));
+    }
+    setCrmConfirmed(true);
   };
 
   if (loading)
@@ -264,59 +280,8 @@ const EventRegister = () => {
 
         <form onSubmit={handleSubmit} className="event-form">
           <h3>Sua inscrição</h3>
-          <div className="form-group">
-            <label>Nome completo *</label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-              placeholder="Seu nome completo"
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Email *</label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, email: e.target.value }))
-              }
-              placeholder="seu@email.com"
-              required
-            />
-          </div>
 
-          <div className="form-row-2">
-            <div className="form-group">
-              <label>Telefone (DDD) *</label>
-              <input
-                type="tel"
-                value={formatPhone(form.phone)}
-                onChange={(e) =>
-                  setForm((p) => ({
-                    ...p,
-                    phone: e.target.value.replace(/\D/g, "").slice(0, 11),
-                  }))
-                }
-                placeholder="(11) 99999-9999"
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>Cidade *</label>
-              <input
-                type="text"
-                value={form.city}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, city: e.target.value }))
-                }
-                placeholder="Sua cidade"
-                required
-              />
-            </div>
-          </div>
-
+          {/* Passo 1: CRM */}
           <div className="form-group">
             <label>CRM *</label>
             <div className="crm-input-box">
@@ -355,35 +320,139 @@ const EventRegister = () => {
             {crmStatus === "checking" && (
               <p className="crm-status crm-checking">⏳ Verificando CRM...</p>
             )}
-            {crmStatus === "valid" && (
-              <p className="crm-status crm-valid">
-                ✔ CRM válido{crmDoctorName ? ` — ${crmDoctorName}` : ""}
-              </p>
-            )}{" "}
-            {crmStatus === "unverified" && (
-              <p className="crm-status crm-warning">⚠ {crmError}</p>
-            )}
             {(crmStatus === "invalid" || crmStatus === "error") && (
               <p className="crm-status crm-invalid">✖ {crmError}</p>
             )}
           </div>
 
-          {error && <div className="error-msg">{error}</div>}
+          {/* Passo 2: card com os dados do médico (CFM) para confirmação */}
+          {crmStatus === "valid" && !crmConfirmed && (
+            <div className="doctor-confirm-card">
+              <div className="doctor-confirm-head">
+                <span className="doctor-confirm-badge">✔ CRM verificado no CFM</span>
+              </div>
+              <h4>{crmDoctor?.name || crmDoctorName}</h4>
+              <div className="doctor-confirm-grid">
+                <div>
+                  <span>CRM</span>
+                  <strong>
+                    {crmDoctor?.crm || form.crm.replace(/\D/g, "")}/
+                    {crmDoctor?.crmUf || form.crmUf}
+                  </strong>
+                </div>
+                {crmDoctor?.situation && (
+                  <div><span>Situação</span><strong>{crmDoctor.situation}</strong></div>
+                )}
+                {crmDoctor?.specialty && (
+                  <div><span>Especialidade</span><strong>{crmDoctor.specialty}</strong></div>
+                )}
+                {crmDoctor?.graduationInstitution && (
+                  <div><span>Formação</span><strong>{crmDoctor.graduationInstitution}</strong></div>
+                )}
+                {crmDoctor?.graduationYear && (
+                  <div><span>Ano de formatura</span><strong>{crmDoctor.graduationYear}</strong></div>
+                )}
+                {crmDoctor?.registrationDate && (
+                  <div><span>Inscrição CFM</span><strong>{crmDoctor.registrationDate}</strong></div>
+                )}
+              </div>
+              <p className="doctor-confirm-question">É você / é este médico?</p>
+              <div className="doctor-confirm-actions">
+                <button type="button" className="btn-primary btn-full" onClick={handleConfirmDoctor}>
+                  ✅ Sim, sou eu — continuar
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary btn-full"
+                  onClick={() => setForm((p) => ({ ...p, crm: "", crmUf: "" }))}
+                >
+                  Não, corrigir CRM
+                </button>
+              </div>
+            </div>
+          )}
 
-          <button
-            type="submit"
-            className="btn-primary btn-full"
-            disabled={
-              submitting ||
-              !(crmStatus === "valid" || crmStatus === "unverified")
-            }
-          >
-            {submitting
-              ? "Inscrevendo..."
-              : crmStatus === "checking"
-                ? "Verificando CRM..."
-                : "✅ Confirmar inscrição"}
-          </button>
+          {/* Passo 2b: CFM indisponível — permite preencher manualmente */}
+          {crmStatus === "unverified" && !crmConfirmed && (
+            <div className="doctor-confirm-card doctor-confirm-warning">
+              <p className="crm-status crm-warning">⚠ {crmError}</p>
+              <button
+                type="button"
+                className="btn-primary btn-full"
+                onClick={() => setCrmConfirmed(true)}
+              >
+                Preencher meus dados manualmente
+              </button>
+            </div>
+          )}
+
+          {/* Passo 3: dados de contato (após confirmar o médico) */}
+          {crmConfirmed && (
+            <>
+              <div className="form-group">
+                <label>Nome completo *</label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                  placeholder="Seu nome completo"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Email *</label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, email: e.target.value }))
+                  }
+                  placeholder="seu@email.com"
+                  required
+                />
+              </div>
+
+              <div className="form-row-2">
+                <div className="form-group">
+                  <label>Telefone (DDD) *</label>
+                  <input
+                    type="tel"
+                    value={formatPhone(form.phone)}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        phone: e.target.value.replace(/\D/g, "").slice(0, 11),
+                      }))
+                    }
+                    placeholder="(11) 99999-9999"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Cidade *</label>
+                  <input
+                    type="text"
+                    value={form.city}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, city: e.target.value }))
+                    }
+                    placeholder="Sua cidade"
+                    required
+                  />
+                </div>
+              </div>
+
+              {error && <div className="error-msg">{error}</div>}
+
+              <button
+                type="submit"
+                className="btn-primary btn-full"
+                disabled={submitting}
+              >
+                {submitting ? "Inscrevendo..." : "✅ Confirmar inscrição"}
+              </button>
+            </>
+          )}
         </form>
       </div>
     </div>
