@@ -20,6 +20,7 @@ const MeetingDetail = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [attendeeFilter, setAttendeeFilter] = useState("");
+  const [viewingSignature, setViewingSignature] = useState(null); // { name, url }
   const csvInputRef = useRef(null);
 
   function parseCSV(text) {
@@ -220,6 +221,49 @@ const MeetingDetail = () => {
   return (
     <div className="app-layout">
       <Navbar />
+
+      {viewingSignature && (
+        <div
+          className="sig-modal-overlay"
+          onClick={() => setViewingSignature(null)}
+        >
+          <div
+            className="sig-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sig-modal-header">
+              <div>
+                <h3>{viewingSignature.name}</h3>
+                <p>{meeting.title}</p>
+              </div>
+              <button
+                className="sig-modal-close"
+                onClick={() => setViewingSignature(null)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="sig-modal-body">
+              <img
+                src={viewingSignature.url}
+                alt={`Assinatura de ${viewingSignature.name}`}
+              />
+            </div>
+            <div className="sig-modal-footer">
+              <a
+                href={viewingSignature.url}
+                download={`assinatura-${viewingSignature.name
+                  .replace(/\s+/g, "-")
+                  .toLowerCase()}.png`}
+                className="btn-secondary"
+              >
+                Baixar assinatura
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className="main-content">
         <div className="page-header">
           <div>
@@ -412,6 +456,7 @@ const MeetingDetail = () => {
                       <th>Cidade</th>
                       <th>Check-in</th>
                       <th>Inscrição</th>
+                      <th>Assinatura</th>
                       {canEdit && <th className="col-action" />}
                     </tr>
                   </thead>
@@ -419,7 +464,7 @@ const MeetingDetail = () => {
                     {filteredAttendees.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={canEdit ? 9 : 8}
+                          colSpan={canEdit ? 10 : 9}
                           className="attendees-empty-row"
                         >
                           Nenhum participante encontrado para o filtro.
@@ -479,6 +524,28 @@ const MeetingDetail = () => {
                           </td>
                           <td className="col-date">
                             {format(new Date(att.registeredAt), "dd/MM HH:mm")}
+                          </td>
+                          <td className="col-sig">
+                            {att.signature ? (
+                              <button
+                                className="sig-thumb-btn"
+                                title={`Ver assinatura de ${att.name}`}
+                                onClick={() =>
+                                  setViewingSignature({
+                                    name: att.name,
+                                    url: att.signature,
+                                  })
+                                }
+                              >
+                                <img
+                                  src={att.signature}
+                                  alt="thumb"
+                                  className="sig-thumb"
+                                />
+                              </button>
+                            ) : (
+                              <span className="cell-empty">—</span>
+                            )}
                           </td>
                           {canEdit && (
                             <td className="col-action">
