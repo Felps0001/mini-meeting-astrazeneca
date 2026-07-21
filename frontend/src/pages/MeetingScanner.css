@@ -76,6 +76,7 @@
   color: var(--text-muted);
 }
 .scanner-icon { font-size: 56px; opacity: 0.4; }
+.scanner-icon--cam::before { content: "⬛"; font-size: 52px; opacity: 0.25; }
 .scanner-placeholder p { font-size: 14px; }
 
 /* Resultado */

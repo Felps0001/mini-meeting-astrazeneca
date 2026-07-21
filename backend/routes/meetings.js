@@ -594,6 +594,30 @@ router.post('/invite/:token/register', async (req, res) => {
   }
 });
 
+// GET /api/meetings/lookup-token/:checkinToken - retorna dados do participante pelo
+// token de check-in sem confirmar presença. Usado para exibir o nome antes de coletar
+// a assinatura no scanner/QRLookup.
+router.get('/lookup-token/:checkinToken', async (req, res) => {
+  try {
+    const meeting = await MiniMeeting.findOne({ 'attendees.checkinToken': req.params.checkinToken })
+      .select('title attendees');
+    if (!meeting) return res.status(404).json({ message: 'Token inválido' });
+
+    const attendee = meeting.attendees.find(a => a.checkinToken === req.params.checkinToken);
+    if (!attendee) return res.status(404).json({ message: 'Participante não encontrado' });
+
+    res.json({
+      name: attendee.name,
+      email: attendee.email,
+      crm: attendee.crm || null,
+      crmUf: attendee.crmUf || null,
+      alreadyCheckedIn: !!attendee.checkedIn
+    });
+  } catch {
+    res.status(500).json({ message: 'Erro interno' });
+  }
+});
+
 // POST /api/meetings/checkin/:checkinToken - confirmar presença via token único
 router.post('/checkin/:checkinToken', async (req, res) => {
   try {
@@ -612,8 +636,13 @@ router.post('/checkin/:checkinToken', async (req, res) => {
       });
     }
 
+    const { signature } = req.body;
     attendee.checkedIn = true;
     attendee.checkedInAt = new Date();
+    // Armazena assinatura (base64 PNG, max 5 MB)
+    if (signature && typeof signature === 'string' && signature.startsWith('data:image/') && signature.length <= 5 * 1024 * 1024) {
+      attendee.signature = signature;
+    }
     await meeting.save();
 
     // Contabiliza a presença na collection de médicos.

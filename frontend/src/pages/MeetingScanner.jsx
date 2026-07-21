@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { Html5Qrcode } from "html5-qrcode";
 import api from "../services/api";
 import Navbar from "../components/Navbar";
+import SignaturePad from "../components/SignaturePad";
 import { useAuth } from "../context/AuthContext";
 import "./MeetingScanner.css";
 
@@ -20,6 +21,7 @@ const MeetingScanner = () => {
   const [lastResult, setLastResult] = useState(null); // { type: 'success'|'already'|'error', name, message }
   const [checkedInCount, setCheckedInCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [pendingSignature, setPendingSignature] = useState(null); // { token, name } aguardando assinatura
 
   const scannerRef = useRef(null);
   const cooldownRef = useRef(false);
@@ -65,23 +67,25 @@ const MeetingScanner = () => {
           if (cooldownRef.current || processing) return;
           cooldownRef.current = true;
           setProcessing(true);
+          setLastResult(null);
 
           const token = extractToken(decodedText);
           try {
-            const { data } = await api.post(`/meetings/checkin/${token}`);
+            // 1. Busca os dados do participante sem confirmar presença ainda
+            const { data } = await api.get(`/meetings/lookup-token/${token}`);
+
             if (data.alreadyCheckedIn) {
               setLastResult({
                 type: "already",
-                name: data.attendee.name,
-                message: "Check-in já realizado",
+                name: data.name,
+                message: "Presença já registrada",
               });
+              setProcessing(false);
+              setTimeout(() => { cooldownRef.current = false; }, 2500);
             } else {
-              setLastResult({
-                type: "success",
-                name: data.attendee.name,
-                message: "Check-in confirmado!",
-              });
-              setCheckedInCount((prev) => prev + 1);
+              // 2. Exibe o pad de assinatura; cooldown permanece ativo até finalizar
+              setPendingSignature({ token, name: data.name });
+              setProcessing(false);
             }
           } catch (err) {
             setLastResult({
@@ -89,11 +93,8 @@ const MeetingScanner = () => {
               name: null,
               message: err.response?.data?.message || "QR Code inválido",
             });
-          } finally {
             setProcessing(false);
-            setTimeout(() => {
-              cooldownRef.current = false;
-            }, 2500);
+            setTimeout(() => { cooldownRef.current = false; }, 2500);
           }
         },
         () => {}, // ignore decode errors
@@ -116,6 +117,38 @@ const MeetingScanner = () => {
       scannerRef.current = null;
     }
     setScannerActive(false);
+  };
+
+  const handleSignatureConfirm = async (dataUrl) => {
+    const { token, name } = pendingSignature;
+    setPendingSignature(null);
+    setProcessing(true);
+    try {
+      const { data } = await api.post(`/meetings/checkin/${token}`, {
+        signature: dataUrl,
+      });
+      if (data.alreadyCheckedIn) {
+        setLastResult({ type: "already", name: data.attendee?.name || name, message: "Presença já registrada" });
+      } else {
+        setLastResult({ type: "success", name: data.attendee?.name || name, message: "Presença confirmada!" });
+        setCheckedInCount((prev) => prev + 1);
+      }
+    } catch (err) {
+      setLastResult({
+        type: "error",
+        name,
+        message: err.response?.data?.message || "Erro ao confirmar presença",
+      });
+    } finally {
+      setProcessing(false);
+      setTimeout(() => { cooldownRef.current = false; }, 2500);
+    }
+  };
+
+  const handleSignatureCancel = () => {
+    setPendingSignature(null);
+    setProcessing(false);
+    cooldownRef.current = false;
   };
 
   useEffect(() => {
@@ -154,13 +187,20 @@ const MeetingScanner = () => {
   return (
     <div className="app-layout">
       <Navbar />
+      {pendingSignature && (
+        <SignaturePad
+          name={pendingSignature.name}
+          onConfirm={handleSignatureConfirm}
+          onCancel={handleSignatureCancel}
+        />
+      )}
       <main className="main-content">
         <div className="page-header">
           <div>
             <Link to={`/meetings/${id}`} className="back-link">
-              ← Voltar ao Meeting
+              ← Voltar ao evento
             </Link>
-            <h1>📷 Scanner de Check-in</h1>
+            <h1>Scanner de Check-in</h1>
             <p className="scanner-subtitle">{meeting?.title}</p>
           </div>
         </div>
@@ -181,7 +221,7 @@ const MeetingScanner = () => {
               />
               {!scannerActive && (
                 <div className="scanner-placeholder">
-                  <span className="scanner-icon">📷</span>
+                  <span className="scanner-icon scanner-icon--cam" />
                   <p>Câmera desligada</p>
                 </div>
               )}
@@ -191,13 +231,6 @@ const MeetingScanner = () => {
               <div
                 className={`scanner-result scanner-result--${lastResult.type}`}
               >
-                <span className="result-icon">
-                  {lastResult.type === "success"
-                    ? "✅"
-                    : lastResult.type === "already"
-                      ? "ℹ️"
-                      : "❌"}
-                </span>
                 <div className="result-text">
                   {lastResult.name && <strong>{lastResult.name}</strong>}
                   <span>{lastResult.message}</span>
@@ -206,7 +239,7 @@ const MeetingScanner = () => {
             )}
 
             {processing && (
-              <div className="scanner-processing">⏳ Processando...</div>
+              <div className="scanner-processing">Identificando participante...</div>
             )}
 
             <div className="scanner-actions">
@@ -215,14 +248,14 @@ const MeetingScanner = () => {
                   className="btn-primary btn-scanner-start"
                   onClick={startScanner}
                 >
-                  📷 Iniciar Scanner
+                  Iniciar scanner
                 </button>
               ) : (
                 <button
                   className="btn-secondary btn-scanner-stop"
                   onClick={stopScanner}
                 >
-                  ⏹ Parar Scanner
+                  Parar scanner
                 </button>
               )}
             </div>

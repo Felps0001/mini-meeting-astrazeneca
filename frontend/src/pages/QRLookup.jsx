@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import api from "../services/api";
 import logoAstra from "../assets/logo-astra.png";
+import SignaturePad from "../components/SignaturePad";
 import "./QRLookup.css";
 
 const QRLookup = () => {
@@ -13,6 +14,7 @@ const QRLookup = () => {
   const [searching, setSearching] = useState(false);
   const [message, setMessage] = useState("");
   const [checkingIn, setCheckingIn] = useState(null); // id do attendee em processo
+  const [signingFor, setSigningFor] = useState(null); // attendee aguardando assinatura
   const debounceRef = useRef(null);
 
   const checkinBase = `${window.location.origin}${import.meta.env.BASE_URL}checkin/`;
@@ -48,11 +50,20 @@ const QRLookup = () => {
     return () => clearTimeout(debounceRef.current);
   }, [query, token]);
 
-  const handleCheckIn = async (r) => {
+  // Abre o pad de assinatura para o participante
+  const handleRequestCheckIn = (r) => {
     if (r.checkedIn || checkingIn) return;
+    setSigningFor(r);
+  };
+
+  const handleSignatureConfirm = async (dataUrl) => {
+    const r = signingFor;
+    setSigningFor(null);
     setCheckingIn(r.id);
     try {
-      const { data } = await api.post(`/meetings/checkin/${r.checkinToken}`);
+      const { data } = await api.post(`/meetings/checkin/${r.checkinToken}`, {
+        signature: dataUrl,
+      });
       setResults((prev) =>
         prev.map((item) =>
           item.id === r.id
@@ -61,7 +72,7 @@ const QRLookup = () => {
                 checkedIn: true,
                 checkInMsg: data.alreadyCheckedIn
                   ? "Já registrado"
-                  : "Check-in feito!",
+                  : "Check-in realizado!",
               }
             : item,
         ),
@@ -83,8 +94,17 @@ const QRLookup = () => {
     }
   };
 
+  const handleSignatureCancel = () => setSigningFor(null);
+
   return (
     <div className="qrlookup-page">
+      {signingFor && (
+        <SignaturePad
+          name={signingFor.name}
+          onConfirm={handleSignatureConfirm}
+          onCancel={handleSignatureCancel}
+        />
+      )}
       <div className="qrlookup-card">
         <div className="qrlookup-header">
           <img src={logoAstra} alt="AstraZeneca" className="qrlookup-logo" />
@@ -136,12 +156,12 @@ const QRLookup = () => {
                 {!r.checkedIn && (
                   <button
                     className="qrlookup-checkin-btn"
-                    onClick={() => handleCheckIn(r)}
-                    disabled={!!checkingIn}
+                    onClick={() => handleRequestCheckIn(r)}
+                    disabled={!!checkingIn || !!signingFor}
                   >
                     {checkingIn === r.id
-                      ? "⏳ Aguarde..."
-                      : "✅ Fazer Check-in"}
+                      ? "Aguarde..."
+                      : "Registrar presença"}
                   </button>
                 )}
               </div>
