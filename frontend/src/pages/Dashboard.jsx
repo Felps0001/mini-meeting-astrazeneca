@@ -68,7 +68,7 @@ const Dashboard = () => {
         <div className="section-header">
           <h2>Meetings Recentes</h2>
           <Link to="/meetings/new" className="btn-primary">
-            + Novo Meeting
+            Novo evento
           </Link>
         </div>
 

@@ -81,7 +81,7 @@ const Meetings = () => {
         <div className="page-header">
           <h1>Mini-Meetings</h1>
           <Link to="/meetings/new" className="btn-primary">
-            + Novo Meeting
+            Novo evento
           </Link>
         </div>
 
@@ -93,7 +93,7 @@ const Meetings = () => {
           <div className="empty-state">
             <p>Nenhum meeting cadastrado.</p>
             <Link to="/meetings/new" className="btn-primary">
-              Criar meeting
+              Criar evento
             </Link>
           </div>
         ) : (

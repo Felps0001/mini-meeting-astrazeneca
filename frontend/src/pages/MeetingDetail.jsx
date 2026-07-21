@@ -19,6 +19,7 @@ const MeetingDetail = () => {
   const [copied, setCopied] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [attendeeFilter, setAttendeeFilter] = useState("");
   const csvInputRef = useRef(null);
 
   function parseCSV(text) {
@@ -93,6 +94,8 @@ const MeetingDetail = () => {
       const parts = [`${data.inserted} importado(s)`];
       if (data.skipped > 0)
         parts.push(`${data.skipped} duplicado(s) ignorado(s)`);
+      if (data.verifying > 0)
+        parts.push(`${data.verifying} em verificação de CRM`);
       if (data.errors.length > 0) parts.push(`${data.errors.length} erro(s)`);
       toast(parts.join(", "), data.inserted > 0 ? "success" : "warning");
       await loadMeeting();
@@ -199,6 +202,21 @@ const MeetingDetail = () => {
     !!user?.id && meeting.organizer?._id?.toString() === user.id;
   const canEdit = isAdmin || isOrganizer;
 
+  const attendeeQuery = attendeeFilter.trim().toLowerCase();
+  const filteredAttendees = attendeeQuery
+    ? meeting.attendees.filter((a) => {
+        const crmStr = a.crm ? `${a.crm}/${a.crmUf || ""}`.toLowerCase() : "";
+        return (
+          a.name?.toLowerCase().includes(attendeeQuery) ||
+          a.email?.toLowerCase().includes(attendeeQuery) ||
+          a.phone?.toLowerCase().includes(attendeeQuery) ||
+          a.city?.toLowerCase().includes(attendeeQuery) ||
+          crmStr.includes(attendeeQuery)
+        );
+      })
+    : meeting.attendees;
+  const checkedInCount = meeting.attendees.filter((a) => a.checkedIn).length;
+
   return (
     <div className="app-layout">
       <Navbar />
@@ -213,7 +231,7 @@ const MeetingDetail = () => {
           <div className="header-actions">
             {meeting.status === "ativo" && (
               <button className="btn-invite" onClick={copyInviteLink}>
-                {copied ? "✅ Copiado!" : "🔗 Copiar link de convite"}
+                {copied ? "Link copiado" : "Copiar link de inscrição"}
               </button>
             )}
             {meeting.status === "ativo" && (
@@ -224,22 +242,22 @@ const MeetingDetail = () => {
                   window.open(link, "_blank", "noopener,noreferrer");
                 }}
               >
-                📱 QR Codes
+                QR Codes de check-in
               </button>
             )}
             {canEdit && (
               <Link to={`/meetings/${id}/scan`} className="btn-invite btn-scan">
-                📷 Escanear QR
+                Escanear check-in
               </Link>
             )}
             {canEdit && (
               <Link to={`/meetings/${id}/edit`} className="btn-secondary">
-                ✏️ Editar
+                Editar evento
               </Link>
             )}
             {isAdmin && (
               <button className="btn-danger" onClick={handleDelete}>
-                🗑️ Excluir
+                Excluir evento
               </button>
             )}
           </div>
@@ -293,7 +311,7 @@ const MeetingDetail = () => {
                   className="btn-warn"
                   onClick={() => handleStatusChange("encerrado")}
                 >
-                  🔒 Encerrar Meeting
+                  Encerrar evento
                 </button>
                 <button
                   className="btn-danger"
@@ -302,7 +320,7 @@ const MeetingDetail = () => {
                       handleStatusChange("cancelado");
                   }}
                 >
-                  ❌ Cancelar Meeting
+                  Cancelar evento
                 </button>
               </div>
             )}
@@ -312,117 +330,177 @@ const MeetingDetail = () => {
                 <p>Link de inscrição para participantes:</p>
                 <code>{`${window.location.origin}${import.meta.env.BASE_URL}event/${meeting.inviteToken}`}</code>
                 <button className="btn-small" onClick={copyInviteLink}>
-                  Copiar
+                  Copiar link
                 </button>
               </div>
             )}
           </div>
+        </div>
 
-          <div className="detail-card">
-            <div className="attendees-header">
-              <h3>Participantes ({meeting.attendees.length})</h3>
-              {meeting.attendees.length > 0 && (
-                <span className="checkin-counter">
-                  ✅ {meeting.attendees.filter((a) => a.checkedIn).length}/
-                  {meeting.attendees.length} presentes
-                </span>
-              )}
-              <button
-                className="btn-small btn-refresh"
-                onClick={handleRefresh}
-                disabled={refreshing}
-                title="Atualizar lista"
-              >
-                {refreshing ? "⏳" : "🔄"} Atualizar
-              </button>
-              {canEdit && (
-                <>
-                  <input
-                    ref={csvInputRef}
-                    type="file"
-                    accept=".csv,text/csv"
-                    style={{ display: "none" }}
-                    onChange={handleCSVImport}
-                  />
-                  <button
-                    className="btn-small btn-import"
-                    onClick={() => csvInputRef.current?.click()}
-                    disabled={importing}
-                    title="Importar participantes via CSV"
-                  >
-                    {importing ? "⏳ Importando..." : "📂 Importar CSV"}
-                  </button>
-                  <button
-                    className="btn-small btn-template"
-                    onClick={downloadTemplate}
-                    title="Baixar modelo CSV"
-                  >
-                    📋 Modelo
-                  </button>
-                </>
-              )}
-            </div>
-            {meeting.attendees.length === 0 ? (
-              <p className="empty-text">Nenhum participante inscrito ainda.</p>
-            ) : (
-              <div className="attendees-list">
-                {meeting.attendees.map((att, idx) => (
-                  <div key={idx} className="attendee-item">
-                    <div className="attendee-info">
-                      <strong>{att.name}</strong>
-                      <span>{att.email}</span>
-                      {att.crm && (
-                        <span className="attendee-crm">
-                          CRM {att.crm}/{att.crmUf}
-                          {att.crmVerified === false && (
-                            <span
-                              className="crm-unverified-badge"
-                              title="O CRM não pôde ser confirmado no CFM no momento da inscrição. Revise manualmente."
-                            >
-                              ⚠ não verificado
-                            </span>
-                          )}
-                        </span>
-                      )}
-                    </div>
-                    {att.signature && (
-                      <div className="attendee-signature">
-                        <img
-                          src={att.signature}
-                          alt={`Assinatura de ${att.name}`}
-                        />
-                      </div>
-                    )}
-                    <div className="attendee-right">
-                      <span
-                        className={`checkin-badge ${
-                          att.checkedIn
-                            ? "checkin-badge--in"
-                            : "checkin-badge--out"
-                        }`}
-                      >
-                        {att.checkedIn ? "✅ Presente" : "⏳ Aguardando"}
-                      </span>
-                      <span className="attendee-date">
-                        {format(new Date(att.registeredAt), "dd/MM HH:mm")}
-                      </span>
-                      {canEdit && (
-                        <button
-                          className="btn-remove-attendee"
-                          title="Cancelar inscrição"
-                          onClick={() =>
-                            handleRemoveAttendee(att._id, att.name)
-                          }
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+        <div className="detail-card attendees-section">
+          <div className="attendees-header">
+            <h3>Participantes ({meeting.attendees.length})</h3>
+            {meeting.attendees.length > 0 && (
+              <span className="checkin-counter">
+                {checkedInCount}/{meeting.attendees.length} presentes
+              </span>
+            )}
+            <button
+              className="btn-small btn-refresh"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              title="Atualizar lista"
+            >
+              {refreshing ? "Atualizando..." : "Atualizar"}
+            </button>
+            {canEdit && (
+              <>
+                <input
+                  ref={csvInputRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  style={{ display: "none" }}
+                  onChange={handleCSVImport}
+                />
+                <button
+                  className="btn-small btn-import"
+                  onClick={() => csvInputRef.current?.click()}
+                  disabled={importing}
+                  title="Importar participantes via CSV"
+                >
+                  {importing ? "Importando..." : "Importar participantes"}
+                </button>
+                <button
+                  className="btn-small btn-template"
+                  onClick={downloadTemplate}
+                  title="Baixar modelo CSV"
+                >
+                  Baixar modelo
+                </button>
+              </>
             )}
           </div>
+
+          {meeting.attendees.length === 0 ? (
+            <p className="empty-text">Nenhum participante inscrito ainda.</p>
+          ) : (
+            <>
+              <div className="attendees-toolbar">
+                <input
+                  type="text"
+                  className="attendees-search"
+                  placeholder="Filtrar por nome, e-mail, CRM, telefone ou cidade..."
+                  value={attendeeFilter}
+                  onChange={(e) => setAttendeeFilter(e.target.value)}
+                />
+                {attendeeQuery && (
+                  <span className="attendees-count">
+                    {filteredAttendees.length} de {meeting.attendees.length}
+                  </span>
+                )}
+              </div>
+
+              <div className="attendees-table-wrap">
+                <table className="attendees-table">
+                  <thead>
+                    <tr>
+                      <th className="col-num">#</th>
+                      <th>Nome</th>
+                      <th>E-mail</th>
+                      <th>CRM</th>
+                      <th>Telefone</th>
+                      <th>Cidade</th>
+                      <th>Check-in</th>
+                      <th>Inscrição</th>
+                      {canEdit && <th className="col-action" />}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAttendees.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={canEdit ? 9 : 8}
+                          className="attendees-empty-row"
+                        >
+                          Nenhum participante encontrado para o filtro.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredAttendees.map((att, idx) => (
+                        <tr key={att._id || idx}>
+                          <td className="col-num">{idx + 1}</td>
+                          <td className="col-name">{att.name}</td>
+                          <td className="col-email">{att.email}</td>
+                          <td>
+                            {att.crm ? (
+                              <span className="cell-crm">
+                                {att.crm}/{att.crmUf}
+                                {att.crmVerified === true && (
+                                  <span
+                                    className="crm-verified-badge"
+                                    title="CRM verificado no CFM."
+                                  >
+                                    ✓
+                                  </span>
+                                )}
+                                {att.crmVerified === false && (
+                                  <span
+                                    className="crm-unverified-badge"
+                                    title="O CRM não pôde ser confirmado no CFM. Revise manualmente."
+                                  >
+                                    não verificado
+                                  </span>
+                                )}
+                                {att.crmVerified == null && (
+                                  <span
+                                    className="crm-pending-badge"
+                                    title="Verificação de CRM em andamento. Atualize a lista em instantes."
+                                  >
+                                    verificando…
+                                  </span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="cell-empty">—</span>
+                            )}
+                          </td>
+                          <td>{att.phone || <span className="cell-empty">—</span>}</td>
+                          <td>{att.city || <span className="cell-empty">—</span>}</td>
+                          <td>
+                            <span
+                              className={`checkin-badge ${
+                                att.checkedIn
+                                  ? "checkin-badge--in"
+                                  : "checkin-badge--out"
+                              }`}
+                            >
+                              {att.checkedIn ? "Presente" : "Aguardando"}
+                            </span>
+                          </td>
+                          <td className="col-date">
+                            {format(new Date(att.registeredAt), "dd/MM HH:mm")}
+                          </td>
+                          {canEdit && (
+                            <td className="col-action">
+                              <button
+                                className="btn-remove-attendee"
+                                title="Cancelar inscrição"
+                                onClick={() =>
+                                  handleRemoveAttendee(att._id, att.name)
+                                }
+                              >
+                                ✕
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </div>
       </main>
     </div>

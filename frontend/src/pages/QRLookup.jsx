@@ -91,14 +91,15 @@ const QRLookup = () => {
           <h1>Meu QR Code</h1>
           {eventTitle && <p className="qrlookup-event">{eventTitle}</p>}
           <p className="qrlookup-subtitle">
-            Digite seu nome ou e-mail para encontrar seu QR Code de check-in
+            Digite seu nome, e-mail ou CRM para encontrar seu QR Code de
+            check-in
           </p>
         </div>
 
         <div className="qrlookup-search">
           <input
             type="text"
-            placeholder="Buscar por nome ou e-mail..."
+            placeholder="Buscar por nome, e-mail ou CRM..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoFocus
@@ -117,6 +118,11 @@ const QRLookup = () => {
               <div className="qrlookup-info">
                 <strong>{r.name}</strong>
                 <span>{r.email}</span>
+                {r.crm && (
+                  <span className="qrlookup-crm">
+                    CRM {r.crm}/{r.crmUf}
+                  </span>
+                )}
                 {r.checkedIn && (
                   <span className="qrlookup-badge">
                     ✅ {r.checkInMsg || "Check-in realizado"}

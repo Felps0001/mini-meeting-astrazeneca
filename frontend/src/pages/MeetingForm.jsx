@@ -106,7 +106,7 @@ const MeetingForm = () => {
                 Cancelar
               </button>
               <button type="submit" className="btn-primary" disabled={loading}>
-                {loading ? 'Salvando...' : isEdit ? 'Salvar alterações' : 'Criar Meeting'}
+                {loading ? 'Salvando...' : isEdit ? 'Salvar alterações' : 'Criar evento'}
               </button>
             </div>
           </form>

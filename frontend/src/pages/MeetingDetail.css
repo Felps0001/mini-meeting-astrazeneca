@@ -1,6 +1,7 @@
 .detail-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start;
+  display: grid; grid-template-columns: 1fr; gap: 20px; align-items: start;
 }
+.attendees-section { margin-top: 20px; }
 .detail-card {
   background: var(--bg-card); border-radius: var(--radius-lg); padding: 24px;
   box-shadow: var(--shadow); border: 1px solid var(--border); backdrop-filter: blur(12px);
@@ -51,15 +52,6 @@
   color: #ce93d8;
 }
 .btn-template:hover { background: rgba(156, 39, 176, 0.2); }
-.attendee-item {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 12px 14px; background: rgba(255,255,255,.05); border-radius: 10px;
-  border: 1px solid var(--border);
-}
-.attendee-info { display: flex; flex-direction: column; flex: 1; }
-.attendee-info strong { font-size: 14px; color: var(--text-main); }
-.attendee-info span { font-size: 12px; color: var(--text-muted); }
-.attendee-crm { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .crm-unverified-badge {
   font-size: 11px;
   font-weight: 600;
@@ -69,13 +61,14 @@
   border-radius: 6px;
   padding: 1px 6px;
 }
-.attendee-signature {
-  width: 120px; height: 50px; border: 1px solid var(--border);
-  border-radius: 6px; overflow: hidden; background: rgba(255,255,255,.05);
+.crm-verified-badge {
+  font-size: 12px; font-weight: 700; color: #2ed573;
 }
-.attendee-signature img { width: 100%; height: 100%; object-fit: contain; filter: invert(1); }
-.attendee-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-.attendee-date { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+.crm-pending-badge {
+  font-size: 11px; font-weight: 600; color: var(--text-muted);
+  background: rgba(255,255,255,.05); border: 1px solid var(--border);
+  border-radius: 6px; padding: 1px 6px;
+}
 .btn-remove-attendee {
   background: none; border: none; cursor: pointer;
   color: rgba(255,71,87,.5); font-size: 14px; font-weight: 700;
@@ -95,13 +88,55 @@
 }
 .empty-text { color: var(--text-muted); font-size: 14px; }
 
+/* Toolbar de filtro da lista de participantes */
+.attendees-toolbar {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+}
+.attendees-search {
+  flex: 1; max-width: 420px;
+  background: rgba(255,255,255,.05); border: 1px solid var(--border);
+  border-radius: 8px; padding: 9px 12px; font-size: 13px; color: var(--text-main);
+  transition: border-color .2s, background .2s;
+}
+.attendees-search::placeholder { color: var(--text-dim); }
+.attendees-search:focus {
+  outline: none; border-color: rgba(233,30,140,.5); background: rgba(255,255,255,.07);
+}
+.attendees-count { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+
+/* Tabela de participantes */
+.attendees-table-wrap {
+  width: 100%; overflow-x: auto; border-radius: 10px; border: 1px solid var(--border);
+}
+.attendees-table {
+  width: 100%; border-collapse: collapse; font-size: 13px; min-width: 760px;
+}
+.attendees-table thead th {
+  text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .4px; color: var(--text-muted);
+  padding: 11px 14px; background: rgba(255,255,255,.04);
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.attendees-table tbody td {
+  padding: 11px 14px; border-bottom: 1px solid rgba(255,255,255,.06);
+  color: var(--text-main); vertical-align: middle;
+}
+.attendees-table tbody tr:last-child td { border-bottom: none; }
+.attendees-table tbody tr:hover td { background: rgba(255,255,255,.03); }
+.attendees-table .col-num { width: 44px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.attendees-table .col-name { font-weight: 600; }
+.attendees-table .col-email { color: var(--text-muted); }
+.attendees-table .col-date { color: var(--text-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.attendees-table .col-action { width: 44px; text-align: center; }
+.cell-crm { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; white-space: nowrap; }
+.cell-empty { color: var(--text-dim); }
+.attendees-empty-row { text-align: center; color: var(--text-muted); padding: 24px !important; }
+
 @media (max-width: 768px) {
-  .detail-grid { grid-template-columns: 1fr; }
   .header-actions { gap: 6px; }
   .header-actions .btn-primary,
   .header-actions .btn-secondary,
   .header-actions .btn-danger { padding: 8px 14px; font-size: 13px; }
-  .attendee-item { flex-direction: column; align-items: flex-start; gap: 6px; }
-  .attendee-date { align-self: flex-end; }
+  .attendees-search { max-width: none; }
   .invite-link-box code { font-size: 11px; }
 }

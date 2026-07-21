@@ -179,6 +179,39 @@ async function verifyCRM(crmNum, ufUpper) {
   return result;
 }
 
+// Processa os participantes importados via CSV em segundo plano:
+// - registra a participação de cada médico (estatísticas/histórico);
+// - valida no CFM apenas os que ainda não conhecíamos, sem travar o import.
+// Roda "fire-and-forget": qualquer erro é ignorado para não afetar o fluxo.
+async function processImportedAttendees(meetingId, meetingTitle, entries) {
+  for (const e of entries) {
+    if (!e.crm || !e.crmUf) continue;
+
+    try {
+      await Doctor.recordRegistration({
+        crmNum: e.crm, ufUpper: e.crmUf, meetingId, meetingTitle,
+        name: e.name, email: e.email, phone: e.phone, city: e.city
+      });
+    } catch { /* estatística não deve interromper o processamento */ }
+
+    if (!e.needsValidation) continue;
+
+    try {
+      const result = await verifyCRM(e.crm, e.crmUf);
+      let verified;
+      if (result.valid === true) verified = true;
+      else if (result.valid === false) verified = false;
+      else continue; // fonte indisponível: mantém "não verificado" para revisão posterior
+
+      await MiniMeeting.updateOne(
+        { _id: meetingId },
+        { $set: { 'attendees.$[el].crmVerified': verified } },
+        { arrayFilters: [{ 'el.crm': e.crm, 'el.crmUf': e.crmUf }] }
+      );
+    } catch { /* falha na validação não deve interromper os demais */ }
+  }
+}
+
 router.get('/validate-crm', async (req, res) => {
   const { crm, uf } = req.query;
   if (!crm || !uf)
@@ -358,39 +391,85 @@ router.post('/:id/attendees/bulk', authMiddleware, async (req, res) => {
     if (attendees.length > 500)
       return res.status(400).json({ message: 'Máximo de 500 participantes por importação' });
 
+    // Normaliza os dados de cada linha uma única vez.
+    const normalized = attendees.map((a) => ({
+      name: a.name ? String(a.name).trim() : '',
+      email: a.email ? String(a.email).toLowerCase().trim() : '',
+      crm: a.crm ? String(a.crm).replace(/\D/g, '') : '',
+      crmUf: a.crmUf ? String(a.crmUf).trim().toUpperCase() : '',
+      phone: a.phone ? String(a.phone).trim() : '',
+      city: a.city ? String(a.city).trim() : ''
+    }));
+
+    // Consulta o nosso banco (collection Doctor) de uma vez só para reaproveitar
+    // médicos já conhecidos: se já foram validados antes, entram como verificados
+    // na hora, sem custo e sem reconsultar o CFM.
+    const crmPairs = normalized
+      .filter((a) => a.crm && a.crmUf)
+      .map((a) => ({ crm: a.crm, crmUf: a.crmUf }));
+    const knownMap = new Map();
+    if (crmPairs.length > 0) {
+      const known = await Doctor.find({ $or: crmPairs });
+      known.forEach((d) => knownMap.set(`${d.crmUf}:${d.crm}`, d));
+    }
+
     let inserted = 0;
     let skipped = 0;
     const errors = [];
+    const bgEntries = [];
 
-    for (let i = 0; i < attendees.length; i++) {
-      const { name, email, crm, crmUf, phone, city } = attendees[i];
+    for (let i = 0; i < normalized.length; i++) {
+      const a = normalized[i];
       const row = i + 2;
 
-      if (!name || !email) {
+      if (!a.name || !a.email) {
         errors.push(`Linha ${row}: nome e email são obrigatórios`);
         continue;
       }
 
-      const emailLower = String(email).toLowerCase().trim();
-      if (meeting.attendees.find(a => a.email === emailLower)) {
+      if (meeting.attendees.find((x) => x.email === a.email)) {
         skipped++;
         continue;
       }
 
+      let crmVerified;
+      let name = a.name;
+      let needsValidation = false;
+
+      if (a.crm && a.crmUf) {
+        const known = knownMap.get(`${a.crmUf}:${a.crm}`);
+        if (known && known.crmVerified) {
+          // Médico já validado no nosso banco: aproveita e usa o nome oficial do CFM.
+          crmVerified = true;
+          if (known.name) name = known.name;
+        } else {
+          // Desconhecido/não verificado: valida em segundo plano.
+          needsValidation = true;
+        }
+      }
+
       meeting.attendees.push({
-        name: String(name).trim(),
-        email: emailLower,
-        crm: crm ? String(crm).replace(/\D/g, '') : undefined,
-        crmUf: crmUf ? String(crmUf).trim().toUpperCase() : undefined,
-        phone: phone ? String(phone).trim() : undefined,
-        city: city ? String(city).trim() : undefined,
+        name,
+        email: a.email,
+        crm: a.crm || undefined,
+        crmUf: a.crmUf || undefined,
+        crmVerified,
+        phone: a.phone || undefined,
+        city: a.city || undefined,
         checkinToken: uuidv4()
       });
       inserted++;
+
+      if (a.crm && a.crmUf) bgEntries.push({ ...a, name, needsValidation });
     }
 
     await meeting.save();
-    res.json({ inserted, skipped, errors });
+
+    // Registra estatísticas e valida os CRMs desconhecidos sem travar a resposta.
+    processImportedAttendees(meeting._id, meeting.title, bgEntries).catch(() => {});
+
+    const verifying = bgEntries.filter((e) => e.needsValidation).length;
+    res.json({ inserted, skipped, errors, verifying });
   } catch {
     res.status(500).json({ message: 'Erro interno' });
   }
@@ -410,12 +489,19 @@ router.get('/invite/:token/lookup', async (req, res) => {
 
     const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
     const matches = meeting.attendees
-      .filter(a => regex.test(a.name) || regex.test(a.email))
+      .filter(a =>
+        regex.test(a.name) ||
+        regex.test(a.email) ||
+        (a.crm && regex.test(a.crm)) ||
+        (a.crm && a.crmUf && regex.test(`${a.crm}/${a.crmUf}`))
+      )
       .slice(0, 8)
       .map(a => ({
         id: a._id,
         name: a.name,
         email: a.email.replace(/(.{2}).+(@.+)/, '$1***$2'),
+        crm: a.crm || null,
+        crmUf: a.crmUf || null,
         checkinToken: a.checkinToken,
         checkedIn: a.checkedIn,
       }));

@@ -89,6 +89,12 @@
 }
 .qrlookup-info strong { font-size: 16px; color: #fff; }
 .qrlookup-info span { font-size: 13px; color: rgba(255,255,255,.55); }
+.qrlookup-crm {
+  font-size: 12px !important;
+  font-weight: 600;
+  color: rgba(255,255,255,.75) !important;
+  letter-spacing: .3px;
+}
 .qrlookup-badge {
   display: inline-block;
   font-size: 12px;
