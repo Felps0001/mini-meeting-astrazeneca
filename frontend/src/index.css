@@ -111,6 +111,7 @@ body::after {
   font-weight: 700; cursor: pointer; transition: all .2s;
   text-decoration: none;
   box-shadow: 0 4px 18px rgba(233,30,140,.35);
+  margin-top: 20px;
 }
 .btn-primary:hover { opacity: .88; transform: translateY(-1px); box-shadow: 0 6px 24px rgba(233,30,140,.45); }
 .btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
