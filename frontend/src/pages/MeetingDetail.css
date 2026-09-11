@@ -148,18 +148,16 @@
 
 /* Thumbnail de assinatura na tabela */
 .col-sig { width: 80px; text-align: center; }
-.sig-thumb-btn {
-  background: none; border: 1px solid var(--border); border-radius: 6px;
-  padding: 2px; cursor: pointer; display: inline-block; line-height: 0;
+.sig-view-btn {
+  background: rgba(255,255,255,.05); border: 1px solid var(--border); border-radius: 6px;
+  padding: 5px 8px; cursor: pointer; color: var(--text-muted); font-size: 11px;
   transition: border-color .2s, box-shadow .2s;
+  white-space: nowrap;
 }
-.sig-thumb-btn:hover {
+.sig-view-btn:hover:not(:disabled) {
   border-color: rgba(233,30,140,.5); box-shadow: 0 0 0 2px rgba(233,30,140,.15);
 }
-.sig-thumb {
-  display: block; width: 64px; height: 28px; object-fit: contain;
-  background: #fff; border-radius: 4px;
-}
+.sig-view-btn:disabled { opacity: .6; cursor: wait; }
 
 /* Modal de assinatura */
 .sig-modal-overlay {

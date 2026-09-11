@@ -1,20 +1,5 @@
 const mongoose = require('mongoose');
 
-const attendeeSchema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true },
-  email: { type: String, required: true, lowercase: true, trim: true },
-  crm: { type: String, trim: true },
-  crmUf: { type: String, trim: true, uppercase: true },
-  crmVerified: { type: Boolean },
-  phone: { type: String, trim: true },
-  city: { type: String, trim: true },
-  signature: { type: String },
-  checkinToken: { type: String },
-  checkedIn: { type: Boolean, default: false },
-  checkedInAt: { type: Date },
-  registeredAt: { type: Date, default: Date.now }
-});
-
 const miniMeetingSchema = new mongoose.Schema({
   title: { type: String, required: true, trim: true },
   description: { type: String, trim: true },
@@ -23,10 +8,14 @@ const miniMeetingSchema = new mongoose.Schema({
   startTime: { type: String, required: true },
   endTime: { type: String },
   organizer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  attendees: [attendeeSchema],
+  attendeeCount: { type: Number, default: 0 },
+  checkedInCount: { type: Number, default: 0 },
   inviteToken: { type: String, unique: true },
   status: { type: String, enum: ['ativo', 'encerrado', 'cancelado'], default: 'ativo' },
   createdAt: { type: Date, default: Date.now }
 });
+
+miniMeetingSchema.index({ organizer: 1, date: -1 });
+miniMeetingSchema.index({ status: 1, date: -1 });
 
 module.exports = mongoose.model('MiniMeeting', miniMeetingSchema);

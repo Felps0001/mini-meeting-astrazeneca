@@ -3,6 +3,7 @@ const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const MiniMeeting = require('../models/MiniMeeting');
+const Attendance = require('../models/Attendance');
 const Doctor = require('../models/Doctor');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 
@@ -11,8 +12,10 @@ router.get('/', authMiddleware, async (req, res) => {
   try {
     const filter = req.user.role === 'admin' ? {} : { organizer: req.user.id };
     const meetings = await MiniMeeting.find(filter)
+      .select('-__v')
       .populate('organizer', 'name email')
-      .sort({ date: -1 });
+      .sort({ date: -1 })
+      .lean();
     res.json(meetings);
   } catch {
     res.status(500).json({ message: 'Erro interno' });
@@ -179,10 +182,8 @@ async function verifyCRM(crmNum, ufUpper) {
   return result;
 }
 
-// Processa os participantes importados via CSV em segundo plano:
-// - registra a participação de cada médico (estatísticas/histórico);
-// - valida no CFM apenas os que ainda não conhecíamos, sem travar o import.
-// Roda "fire-and-forget": qualquer erro é ignorado para não afetar o fluxo.
+// Registra apenas as estatísticas locais dos médicos importados. A validação
+// externa de CRM é iniciada manualmente na página do evento.
 async function processImportedAttendees(meetingId, meetingTitle, entries) {
   for (const e of entries) {
     if (!e.crm || !e.crmUf) continue;
@@ -194,21 +195,6 @@ async function processImportedAttendees(meetingId, meetingTitle, entries) {
       });
     } catch { /* estatística não deve interromper o processamento */ }
 
-    if (!e.needsValidation) continue;
-
-    try {
-      const result = await verifyCRM(e.crm, e.crmUf);
-      let verified;
-      if (result.valid === true) verified = true;
-      else if (result.valid === false) verified = false;
-      else continue; // fonte indisponível: mantém "não verificado" para revisão posterior
-
-      await MiniMeeting.updateOne(
-        { _id: meetingId },
-        { $set: { 'attendees.$[el].crmVerified': verified } },
-        { arrayFilters: [{ 'el.crm': e.crm, 'el.crmUf': e.crmUf }] }
-      );
-    } catch { /* falha na validação não deve interromper os demais */ }
   }
 }
 
@@ -262,13 +248,22 @@ router.get('/validate-crm', async (req, res) => {
 // GET /api/meetings/:id
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
-    const meeting = await MiniMeeting.findById(req.params.id).populate('organizer', 'name email');
+    const meeting = await MiniMeeting.findById(req.params.id)
+      .populate('organizer', 'name email')
+      .lean();
     if (!meeting) return res.status(404).json({ message: 'Meeting não encontrado' });
 
     if (req.user.role !== 'admin' && meeting.organizer._id.toString() !== req.user.id)
       return res.status(403).json({ message: 'Acesso negado' });
 
-    res.json(meeting);
+    const attendees = req.query.includeAttendees === 'false'
+      ? undefined
+      : await Attendance.find({ meeting: meeting._id })
+        .select('-__v')
+        .sort({ registeredAt: 1 })
+        .lean();
+
+    res.json(attendees ? { ...meeting, attendees } : meeting);
   } catch {
     res.status(500).json({ message: 'Erro interno' });
   }
@@ -332,7 +327,11 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     await meeting.save();
     await meeting.populate('organizer', 'name email');
-    res.json(meeting);
+    const attendees = await Attendance.find({ meeting: meeting._id })
+      .select('-__v')
+      .sort({ registeredAt: 1 })
+      .lean();
+    res.json({ ...meeting.toObject(), attendees });
   } catch {
     res.status(500).json({ message: 'Erro interno' });
   }
@@ -348,6 +347,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       return res.status(403).json({ message: 'Acesso negado' });
 
     await meeting.deleteOne();
+    await Attendance.deleteMany({ meeting: meeting._id });
     res.json({ message: 'Meeting removido' });
   } catch {
     res.status(500).json({ message: 'Erro interno' });
@@ -363,13 +363,76 @@ router.delete('/:id/attendees/:attendeeId', authMiddleware, async (req, res) => 
     if (req.user.role !== 'admin' && meeting.organizer.toString() !== req.user.id)
       return res.status(403).json({ message: 'Acesso negado' });
 
-    const attendee = meeting.attendees.id(req.params.attendeeId);
+    const attendee = await Attendance.findOneAndDelete({
+      _id: req.params.attendeeId,
+      meeting: meeting._id
+    });
     if (!attendee) return res.status(404).json({ message: 'Participante não encontrado' });
 
-    attendee.deleteOne();
-    await meeting.save();
+    const decrement = { attendeeCount: -1 };
+    if (attendee.checkedIn) decrement.checkedInCount = -1;
+    await MiniMeeting.updateOne({ _id: meeting._id }, { $inc: decrement });
 
     res.json({ message: 'Inscrição cancelada com sucesso' });
+  } catch {
+    res.status(500).json({ message: 'Erro interno' });
+  }
+});
+
+// GET /api/meetings/:id/attendees/:attendeeId/signature
+// A imagem pesada só é carregada quando o usuário abre o modal.
+router.get('/:id/attendees/:attendeeId/signature', authMiddleware, async (req, res) => {
+  try {
+    const meeting = await MiniMeeting.findById(req.params.id).select('organizer');
+    if (!meeting) return res.status(404).json({ message: 'Meeting não encontrado' });
+
+    if (req.user.role !== 'admin' && meeting.organizer.toString() !== req.user.id)
+      return res.status(403).json({ message: 'Acesso negado' });
+
+    const attendee = await Attendance.findOne({
+      _id: req.params.attendeeId,
+      meeting: meeting._id
+    }).select('+signature name');
+
+    if (!attendee) return res.status(404).json({ message: 'Participante não encontrado' });
+    if (!attendee.signature) return res.status(404).json({ message: 'Assinatura não encontrada' });
+
+    res.json({ name: attendee.name, signature: attendee.signature });
+  } catch {
+    res.status(500).json({ message: 'Erro interno' });
+  }
+});
+
+// POST /api/meetings/:id/attendees/:attendeeId/verify-crm
+router.post('/:id/attendees/:attendeeId/verify-crm', authMiddleware, async (req, res) => {
+  try {
+    const meeting = await MiniMeeting.findById(req.params.id).select('organizer');
+    if (!meeting) return res.status(404).json({ message: 'Meeting não encontrado' });
+
+    if (req.user.role !== 'admin' && meeting.organizer.toString() !== req.user.id)
+      return res.status(403).json({ message: 'Acesso negado' });
+
+    const attendee = await Attendance.findOne({
+      _id: req.params.attendeeId,
+      meeting: meeting._id
+    });
+    if (!attendee) return res.status(404).json({ message: 'Participante não encontrado' });
+    if (!attendee.crm || !attendee.crmUf)
+      return res.status(400).json({ message: 'Participante não possui CRM cadastrado' });
+
+    const result = await verifyCRM(attendee.crm, attendee.crmUf);
+    if (result.unavailable)
+      return res.json({ crmVerified: null, unavailable: true, name: null });
+
+    attendee.crmVerified = result.valid === true;
+    if (attendee.crmVerified && result.name) attendee.name = result.name;
+    await attendee.save();
+
+    res.json({
+      crmVerified: attendee.crmVerified,
+      unavailable: false,
+      name: result.name || null
+    });
   } catch {
     res.status(500).json({ message: 'Erro interno' });
   }
@@ -413,10 +476,16 @@ router.post('/:id/attendees/bulk', authMiddleware, async (req, res) => {
       known.forEach((d) => knownMap.set(`${d.crmUf}:${d.crm}`, d));
     }
 
-    let inserted = 0;
-    let skipped = 0;
+    const existingEmails = new Set(
+      (await Attendance.find({
+        meeting: meeting._id,
+        email: { $in: normalized.map((attendee) => attendee.email).filter(Boolean) }
+      }).select('email').lean()).map((attendee) => attendee.email)
+    );
+    const queuedEmails = new Set();
+    const documents = [];
     const errors = [];
-    const bgEntries = [];
+    let skipped = 0;
 
     for (let i = 0; i < normalized.length; i++) {
       const a = normalized[i];
@@ -427,7 +496,7 @@ router.post('/:id/attendees/bulk', authMiddleware, async (req, res) => {
         continue;
       }
 
-      if (meeting.attendees.find((x) => x.email === a.email)) {
+      if (existingEmails.has(a.email) || queuedEmails.has(a.email)) {
         skipped++;
         continue;
       }
@@ -443,12 +512,13 @@ router.post('/:id/attendees/bulk', authMiddleware, async (req, res) => {
           crmVerified = true;
           if (known.name) name = known.name;
         } else {
-          // Desconhecido/não verificado: valida em segundo plano.
+          // Desconhecido/não verificado: fica pendente para verificação manual.
           needsValidation = true;
         }
       }
 
-      meeting.attendees.push({
+      documents.push({
+        meeting: meeting._id,
         name,
         email: a.email,
         crm: a.crm || undefined,
@@ -458,18 +528,26 @@ router.post('/:id/attendees/bulk', authMiddleware, async (req, res) => {
         city: a.city || undefined,
         checkinToken: uuidv4()
       });
-      inserted++;
-
-      if (a.crm && a.crmUf) bgEntries.push({ ...a, name, needsValidation });
+      queuedEmails.add(a.email);
     }
 
-    await meeting.save();
+    const created = documents.length > 0
+      ? await Attendance.insertMany(documents, { ordered: false })
+      : [];
+    if (created.length > 0) {
+      await MiniMeeting.updateOne(
+        { _id: meeting._id },
+        { $inc: { attendeeCount: created.length } }
+      );
+    }
 
-    // Registra estatísticas e valida os CRMs desconhecidos sem travar a resposta.
-    processImportedAttendees(meeting._id, meeting.title, bgEntries).catch(() => {});
+    const statsEntries = documents
+      .filter((attendee) => attendee.crm && attendee.crmUf)
+      .map((attendee) => ({ ...attendee, needsValidation: attendee.crmVerified == null }));
+    processImportedAttendees(meeting._id, meeting.title, statsEntries).catch(() => {});
 
-    const pendingVerification = bgEntries.filter((e) => e.needsValidation).length;
-    res.json({ inserted, skipped, errors, pendingVerification });
+    const pendingVerification = statsEntries.filter((entry) => entry.needsValidation).length;
+    res.json({ inserted: created.length, skipped, errors, pendingVerification });
   } catch {
     res.status(500).json({ message: 'Erro interno' });
   }
@@ -483,27 +561,30 @@ router.get('/invite/:token/lookup', async (req, res) => {
       return res.status(400).json({ message: 'Digite ao menos 3 caracteres' });
 
     const meeting = await MiniMeeting.findOne({ inviteToken: req.params.token })
-      .select('title attendees status');
+      .select('title status')
+      .lean();
     if (!meeting)
       return res.status(404).json({ message: 'Evento não encontrado' });
 
     const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    const matches = meeting.attendees
-      .filter(a =>
-        regex.test(a.name) ||
-        regex.test(a.email) ||
-        (a.crm && regex.test(a.crm)) ||
-        (a.crm && a.crmUf && regex.test(`${a.crm}/${a.crmUf}`))
-      )
-      .slice(0, 8)
-      .map(a => ({
+    const crmDigits = q.replace(/\D/g, '');
+    const searchFields = [
+      { name: regex },
+      { email: regex }
+    ];
+    if (crmDigits) searchFields.push({ crm: new RegExp(crmDigits) });
+    const attendees = await Attendance.find({
+      meeting: meeting._id,
+      $or: searchFields
+    }).limit(8).lean();
+    const matches = attendees.map(a => ({
         id: a._id,
         name: a.name,
         email: a.email.replace(/(.{2}).+(@.+)/, '$1***$2'),
         crm: a.crm || null,
         crmUf: a.crmUf || null,
         checkinToken: a.checkinToken,
-        checkedIn: a.checkedIn,
+        checkedIn: a.checkedIn
       }));
 
     res.json({ eventTitle: meeting.title, results: matches });
@@ -559,6 +640,17 @@ router.post('/invite/:token/register', async (req, res) => {
     if (!VALID_UFS.includes(ufUpper))
       return res.status(400).json({ message: 'UF inválida' });
 
+    const meeting = await MiniMeeting.findOne({ inviteToken: req.params.token });
+    if (!meeting || meeting.status !== 'ativo')
+      return res.status(404).json({ message: 'Evento não encontrado ou encerrado' });
+
+    const alreadyRegistered = await Attendance.exists({
+      meeting: meeting._id,
+      email: email.toLowerCase()
+    });
+    if (alreadyRegistered)
+      return res.status(400).json({ message: 'Este email já está inscrito neste evento' });
+
     // Validação real de CRM (solução B):
     // - CRM realmente não encontrado => bloqueia.
     // - Fonte indisponível (CFM lento/fora) => aceita e marca como não verificado.
@@ -568,16 +660,22 @@ router.post('/invite/:token/register', async (req, res) => {
       return res.status(400).json({ message: cfmResult.message || 'CRM não encontrado ou inválido no CFM' });
     const crmVerified = cfmResult.valid === true;
 
-    const meeting = await MiniMeeting.findOne({ inviteToken: req.params.token });
-    if (!meeting || meeting.status !== 'ativo')
-      return res.status(404).json({ message: 'Evento não encontrado ou encerrado' });
-
-    const alreadyRegistered = meeting.attendees.find(a => a.email === email.toLowerCase());
-    if (alreadyRegistered)
-      return res.status(400).json({ message: 'Este email já está inscrito neste evento' });
-
-    meeting.attendees.push({ name, email: email.toLowerCase(), phone, city, crm: crmNum, crmUf: ufUpper, crmVerified, checkinToken: uuidv4() });
-    await meeting.save();
+    const checkinToken = uuidv4();
+    await Attendance.create({
+      meeting: meeting._id,
+      name,
+      email: email.toLowerCase(),
+      phone,
+      city,
+      crm: crmNum,
+      crmUf: ufUpper,
+      crmVerified,
+      checkinToken
+    });
+    await MiniMeeting.updateOne(
+      { _id: meeting._id },
+      { $inc: { attendeeCount: 1 } }
+    );
 
     // Registra a inscrição na collection de médicos (estatísticas + contato).
     try {
@@ -587,9 +685,10 @@ router.post('/invite/:token/register', async (req, res) => {
       });
     } catch { /* estatística não deve quebrar a inscrição */ }
 
-    const newAttendee = meeting.attendees[meeting.attendees.length - 1];
-    res.json({ message: 'Inscrição realizada com sucesso!', checkinToken: newAttendee.checkinToken });
-  } catch {
+    res.json({ message: 'Inscrição realizada com sucesso!', checkinToken });
+  } catch (error) {
+    if (error?.code === 11000)
+      return res.status(400).json({ message: 'Este email já está inscrito neste evento' });
     res.status(500).json({ message: 'Erro interno' });
   }
 });
@@ -599,11 +698,7 @@ router.post('/invite/:token/register', async (req, res) => {
 // a assinatura no scanner/QRLookup.
 router.get('/lookup-token/:checkinToken', async (req, res) => {
   try {
-    const meeting = await MiniMeeting.findOne({ 'attendees.checkinToken': req.params.checkinToken })
-      .select('title attendees');
-    if (!meeting) return res.status(404).json({ message: 'Token inválido' });
-
-    const attendee = meeting.attendees.find(a => a.checkinToken === req.params.checkinToken);
+    const attendee = await Attendance.findOne({ checkinToken: req.params.checkinToken }).lean();
     if (!attendee) return res.status(404).json({ message: 'Participante não encontrado' });
 
     res.json({
@@ -621,29 +716,40 @@ router.get('/lookup-token/:checkinToken', async (req, res) => {
 // POST /api/meetings/checkin/:checkinToken - confirmar presença via token único
 router.post('/checkin/:checkinToken', async (req, res) => {
   try {
-    const meeting = await MiniMeeting.findOne({ 'attendees.checkinToken': req.params.checkinToken });
-    if (!meeting) return res.status(404).json({ message: 'Token de check-in inválido' });
+    const { signature } = req.body;
+    const update = {
+      checkedIn: true,
+      checkedInAt: new Date()
+    };
+    if (signature && typeof signature === 'string' && signature.startsWith('data:image/') && signature.length <= 5 * 1024 * 1024) {
+      update.signature = signature;
+      update.hasSignature = true;
+    }
 
-    const attendee = meeting.attendees.find(a => a.checkinToken === req.params.checkinToken);
-    if (!attendee) return res.status(404).json({ message: 'Participante não encontrado' });
+    const attendee = await Attendance.findOneAndUpdate(
+      { checkinToken: req.params.checkinToken, checkedIn: false },
+      { $set: update },
+      { new: true }
+    );
 
-    if (attendee.checkedIn) {
+    if (!attendee) {
+      const existing = await Attendance.findOne({ checkinToken: req.params.checkinToken });
+      if (!existing) return res.status(404).json({ message: 'Token de check-in inválido' });
+      const meeting = await MiniMeeting.findById(existing.meeting).select('title').lean();
       return res.json({
         message: 'Check-in já realizado',
         alreadyCheckedIn: true,
-        attendee: { name: attendee.name, email: attendee.email, checkedInAt: attendee.checkedInAt },
-        event: { title: meeting.title }
+        attendee: { name: existing.name, email: existing.email, checkedInAt: existing.checkedInAt },
+        event: { title: meeting?.title || '' }
       });
     }
 
-    const { signature } = req.body;
-    attendee.checkedIn = true;
-    attendee.checkedInAt = new Date();
-    // Armazena assinatura (base64 PNG, max 5 MB)
-    if (signature && typeof signature === 'string' && signature.startsWith('data:image/') && signature.length <= 5 * 1024 * 1024) {
-      attendee.signature = signature;
-    }
-    await meeting.save();
+    const meeting = await MiniMeeting.findByIdAndUpdate(
+      attendee.meeting,
+      { $inc: { checkedInCount: 1 } },
+      { new: true }
+    ).lean();
+    if (!meeting) return res.status(404).json({ message: 'Evento não encontrado' });
 
     // Contabiliza a presença na collection de médicos.
     if (attendee.crm && attendee.crmUf) {

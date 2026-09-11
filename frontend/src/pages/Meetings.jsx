@@ -162,7 +162,7 @@ const Meetings = () => {
                         {isAdmin && <td>{m.organizer?.name}</td>}
                         <td>
                           <span className="attendee-count">
-                            👥 {m.attendees.length}
+                            👥 {m.attendeeCount || 0}
                           </span>
                         </td>
                         <td>

@@ -21,6 +21,7 @@ const MeetingDetail = () => {
   const [importing, setImporting] = useState(false);
   const [attendeeFilter, setAttendeeFilter] = useState("");
   const [viewingSignature, setViewingSignature] = useState(null); // { name, url }
+  const [signatureLoadingId, setSignatureLoadingId] = useState(null);
   const [verifying, setVerifying] = useState(false);
   const [verifyProgress, setVerifyProgress] = useState(null); // { current, total }
   const verifyAbortRef = useRef(false);
@@ -139,6 +140,20 @@ const MeetingDetail = () => {
   const handleRefresh = () => {
     setRefreshing(true);
     loadMeeting().finally(() => setRefreshing(false));
+  };
+
+  const handleViewSignature = async (attendee) => {
+    setSignatureLoadingId(attendee._id);
+    try {
+      const { data } = await api.get(
+        `/meetings/${id}/attendees/${attendee._id}/signature`,
+      );
+      setViewingSignature({ name: data.name || attendee.name, url: data.signature });
+    } catch (err) {
+      toast(err.response?.data?.message || "Erro ao carregar assinatura", "error");
+    } finally {
+      setSignatureLoadingId(null);
+    }
   };
 
   const handleVerifyCRMs = async () => {
@@ -601,22 +616,16 @@ const MeetingDetail = () => {
                             {format(new Date(att.registeredAt), "dd/MM HH:mm")}
                           </td>
                           <td className="col-sig">
-                            {att.signature ? (
+                            {att.hasSignature ? (
                               <button
-                                className="sig-thumb-btn"
+                                className="sig-view-btn"
                                 title={`Ver assinatura de ${att.name}`}
-                                onClick={() =>
-                                  setViewingSignature({
-                                    name: att.name,
-                                    url: att.signature,
-                                  })
-                                }
+                                onClick={() => handleViewSignature(att)}
+                                disabled={signatureLoadingId === att._id}
                               >
-                                <img
-                                  src={att.signature}
-                                  alt="thumb"
-                                  className="sig-thumb"
-                                />
+                                {signatureLoadingId === att._id
+                                  ? "Carregando..."
+                                  : "Ver assinatura"}
                               </button>
                             ) : (
                               <span className="cell-empty">—</span>

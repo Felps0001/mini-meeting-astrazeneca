@@ -29,7 +29,7 @@ const MeetingScanner = () => {
   // Carrega o meeting e verifica acesso
   useEffect(() => {
     api
-      .get(`/meetings/${id}`)
+      .get(`/meetings/${id}?includeAttendees=false`)
       .then(({ data }) => {
         const isOrganizer =
           user?.id && data.organizer?._id?.toString() === user.id;
@@ -38,8 +38,8 @@ const MeetingScanner = () => {
           return;
         }
         setMeeting(data);
-        setCheckedInCount(data.attendees.filter((a) => a.checkedIn).length);
-        setTotalCount(data.attendees.length);
+        setCheckedInCount(data.checkedInCount || 0);
+        setTotalCount(data.attendeeCount || 0);
       })
       .catch(() => setAccessDenied(true))
       .finally(() => setLoadingMeeting(false));

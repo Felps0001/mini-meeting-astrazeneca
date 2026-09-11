@@ -24,7 +24,7 @@ const Dashboard = () => {
   const totalMeetings = meetings.length;
   const activeMeetings = meetings.filter((m) => m.status === "ativo").length;
   const totalAttendees = meetings.reduce(
-    (acc, m) => acc + m.attendees.length,
+    (acc, m) => acc + (m.attendeeCount || 0),
     0,
   );
 
@@ -112,8 +112,8 @@ const Dashboard = () => {
                   </div>
                 )}
                 <div className="meeting-attendees">
-                  👥 {meeting.attendees.length} participante
-                  {meeting.attendees.length !== 1 ? "s" : ""}
+                  👥 {meeting.attendeeCount || 0} participante
+                  {meeting.attendeeCount !== 1 ? "s" : ""}
                 </div>
               </Link>
             ))}

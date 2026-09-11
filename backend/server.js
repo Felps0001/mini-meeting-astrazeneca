@@ -2,10 +2,9 @@ require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
+const migrateAttendees = require('./scripts/migrateAttendees');
 
 const app = express();
-
-connectDB();
 
 app.use(cors({
   origin: (origin, cb) => {
@@ -30,4 +29,14 @@ app.use('/api/doctors', require('./routes/doctors'));
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+
+async function startServer() {
+  await connectDB();
+  await migrateAttendees();
+  app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+}
+
+startServer().catch((error) => {
+  console.error('Erro ao iniciar servidor:', error);
+  process.exit(1);
+});
