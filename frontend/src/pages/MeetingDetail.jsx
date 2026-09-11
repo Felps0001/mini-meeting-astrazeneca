@@ -21,6 +21,9 @@ const MeetingDetail = () => {
   const [importing, setImporting] = useState(false);
   const [attendeeFilter, setAttendeeFilter] = useState("");
   const [viewingSignature, setViewingSignature] = useState(null); // { name, url }
+  const [verifying, setVerifying] = useState(false);
+  const [verifyProgress, setVerifyProgress] = useState(null); // { current, total }
+  const verifyAbortRef = useRef(false);
   const csvInputRef = useRef(null);
 
   function parseCSV(text) {
@@ -95,8 +98,8 @@ const MeetingDetail = () => {
       const parts = [`${data.inserted} importado(s)`];
       if (data.skipped > 0)
         parts.push(`${data.skipped} duplicado(s) ignorado(s)`);
-      if (data.verifying > 0)
-        parts.push(`${data.verifying} em verificação de CRM`);
+      if (data.pendingVerification > 0)
+        parts.push(`${data.pendingVerification} CRM(s) pendente(s) de verificação`);
       if (data.errors.length > 0) parts.push(`${data.errors.length} erro(s)`);
       toast(parts.join(", "), data.inserted > 0 ? "success" : "warning");
       await loadMeeting();
@@ -136,6 +139,50 @@ const MeetingDetail = () => {
   const handleRefresh = () => {
     setRefreshing(true);
     loadMeeting().finally(() => setRefreshing(false));
+  };
+
+  const handleVerifyCRMs = async () => {
+    const pending = meeting.attendees.filter(
+      (attendee) => attendee.crm && attendee.crmUf && attendee.crmVerified == null,
+    );
+    if (pending.length === 0) return;
+
+    verifyAbortRef.current = false;
+    setVerifying(true);
+    setVerifyProgress({ current: 0, total: pending.length });
+
+    for (let index = 0; index < pending.length; index++) {
+      if (verifyAbortRef.current) break;
+
+      const attendee = pending[index];
+      setVerifyProgress({ current: index + 1, total: pending.length });
+      try {
+        const { data } = await api.post(
+          `/meetings/${id}/attendees/${attendee._id}/verify-crm`,
+        );
+
+        if (!data.unavailable) {
+          setMeeting((previous) => ({
+            ...previous,
+            attendees: previous.attendees.map((current) =>
+              current._id === attendee._id
+                ? {
+                    ...current,
+                    crmVerified: data.crmVerified,
+                    name: data.name || current.name,
+                  }
+                : current,
+            ),
+          }));
+        }
+      } catch {
+        // Mantém o CRM pendente para uma nova tentativa posterior.
+      }
+    }
+
+    setVerifying(false);
+    setVerifyProgress(null);
+    if (verifyAbortRef.current) toast("Verificação interrompida", "warning");
   };
 
   const handleRemoveAttendee = async (attendeeId, attendeeName) => {
@@ -217,6 +264,9 @@ const MeetingDetail = () => {
       })
     : meeting.attendees;
   const checkedInCount = meeting.attendees.filter((a) => a.checkedIn).length;
+  const pendingCrmCount = meeting.attendees.filter(
+    (attendee) => attendee.crm && attendee.crmUf && attendee.crmVerified == null,
+  ).length;
 
   return (
     <div className="app-layout">
@@ -227,10 +277,7 @@ const MeetingDetail = () => {
           className="sig-modal-overlay"
           onClick={() => setViewingSignature(null)}
         >
-          <div
-            className="sig-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="sig-modal" onClick={(e) => e.stopPropagation()}>
             <div className="sig-modal-header">
               <div>
                 <h3>{viewingSignature.name}</h3>
@@ -423,6 +470,30 @@ const MeetingDetail = () => {
                 </button>
               </>
             )}
+            {canEdit && pendingCrmCount > 0 && (
+              verifying ? (
+                <span className="verify-progress">
+                  Verificando {verifyProgress?.current}/{verifyProgress?.total}
+                  <button
+                    className="btn-small btn-stop-verify"
+                    onClick={() => {
+                      verifyAbortRef.current = true;
+                    }}
+                    title="Interromper verificação"
+                  >
+                    Parar
+                  </button>
+                </span>
+              ) : (
+                <button
+                  className="btn-small btn-verify-crm"
+                  onClick={handleVerifyCRMs}
+                  title="Verificar CRMs pendentes"
+                >
+                  Verificar CRMs ({pendingCrmCount})
+                </button>
+              )
+            )}
           </div>
 
           {meeting.attendees.length === 0 ? (
@@ -509,8 +580,12 @@ const MeetingDetail = () => {
                               <span className="cell-empty">—</span>
                             )}
                           </td>
-                          <td>{att.phone || <span className="cell-empty">—</span>}</td>
-                          <td>{att.city || <span className="cell-empty">—</span>}</td>
+                          <td>
+                            {att.phone || <span className="cell-empty">—</span>}
+                          </td>
+                          <td>
+                            {att.city || <span className="cell-empty">—</span>}
+                          </td>
                           <td>
                             <span
                               className={`checkin-badge ${

@@ -52,6 +52,20 @@
   color: #ce93d8;
 }
 .btn-template:hover { background: rgba(156, 39, 176, 0.2); }
+.btn-verify-crm {
+  background: rgba(59, 130, 246, .12); border: 1px solid rgba(59, 130, 246, .35);
+  color: #93c5fd;
+}
+.btn-verify-crm:hover { background: rgba(59, 130, 246, .2); }
+.verify-progress {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--text-muted); white-space: nowrap;
+}
+.btn-stop-verify {
+  background: rgba(255, 71, 87, .1); border: 1px solid rgba(255, 71, 87, .25);
+  color: #fca5a5;
+}
+.btn-stop-verify:hover { background: rgba(255, 71, 87, .18); }
 .crm-unverified-badge {
   font-size: 11px;
   font-weight: 600;

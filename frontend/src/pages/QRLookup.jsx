@@ -159,9 +159,7 @@ const QRLookup = () => {
                     onClick={() => handleRequestCheckIn(r)}
                     disabled={!!checkingIn || !!signingFor}
                   >
-                    {checkingIn === r.id
-                      ? "Aguarde..."
-                      : "Registrar presença"}
+                    {checkingIn === r.id ? "Aguarde..." : "Registrar presença"}
                   </button>
                 )}
               </div>

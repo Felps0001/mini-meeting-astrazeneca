@@ -81,7 +81,9 @@ const MeetingScanner = () => {
                 message: "Presença já registrada",
               });
               setProcessing(false);
-              setTimeout(() => { cooldownRef.current = false; }, 2500);
+              setTimeout(() => {
+                cooldownRef.current = false;
+              }, 2500);
             } else {
               // 2. Exibe o pad de assinatura; cooldown permanece ativo até finalizar
               setPendingSignature({ token, name: data.name });
@@ -94,7 +96,9 @@ const MeetingScanner = () => {
               message: err.response?.data?.message || "QR Code inválido",
             });
             setProcessing(false);
-            setTimeout(() => { cooldownRef.current = false; }, 2500);
+            setTimeout(() => {
+              cooldownRef.current = false;
+            }, 2500);
           }
         },
         () => {}, // ignore decode errors
@@ -128,9 +132,17 @@ const MeetingScanner = () => {
         signature: dataUrl,
       });
       if (data.alreadyCheckedIn) {
-        setLastResult({ type: "already", name: data.attendee?.name || name, message: "Presença já registrada" });
+        setLastResult({
+          type: "already",
+          name: data.attendee?.name || name,
+          message: "Presença já registrada",
+        });
       } else {
-        setLastResult({ type: "success", name: data.attendee?.name || name, message: "Presença confirmada!" });
+        setLastResult({
+          type: "success",
+          name: data.attendee?.name || name,
+          message: "Presença confirmada!",
+        });
         setCheckedInCount((prev) => prev + 1);
       }
     } catch (err) {
@@ -141,7 +153,9 @@ const MeetingScanner = () => {
       });
     } finally {
       setProcessing(false);
-      setTimeout(() => { cooldownRef.current = false; }, 2500);
+      setTimeout(() => {
+        cooldownRef.current = false;
+      }, 2500);
     }
   };
 
@@ -239,7 +253,9 @@ const MeetingScanner = () => {
             )}
 
             {processing && (
-              <div className="scanner-processing">Identificando participante...</div>
+              <div className="scanner-processing">
+                Identificando participante...
+              </div>
             )}
 
             <div className="scanner-actions">

@@ -468,8 +468,8 @@ router.post('/:id/attendees/bulk', authMiddleware, async (req, res) => {
     // Registra estatísticas e valida os CRMs desconhecidos sem travar a resposta.
     processImportedAttendees(meeting._id, meeting.title, bgEntries).catch(() => {});
 
-    const verifying = bgEntries.filter((e) => e.needsValidation).length;
-    res.json({ inserted, skipped, errors, verifying });
+    const pendingVerification = bgEntries.filter((e) => e.needsValidation).length;
+    res.json({ inserted, skipped, errors, pendingVerification });
   } catch {
     res.status(500).json({ message: 'Erro interno' });
   }
