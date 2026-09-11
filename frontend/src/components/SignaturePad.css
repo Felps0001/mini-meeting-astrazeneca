@@ -76,6 +76,8 @@
 
 @media (max-width: 480px) {
   .sigpad-card { padding: 20px 16px; }
-  .sigpad-actions { gap: 8px; }
+  .sigpad-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .sigpad-actions .btn-primary { grid-column: 1 / -1; grid-row: 1; width: 100%; }
+  .sigpad-actions .btn-secondary { width: 100%; }
   .sigpad-btn-clear { margin-right: 0; }
 }

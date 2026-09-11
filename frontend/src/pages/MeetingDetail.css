@@ -14,7 +14,10 @@
 .detail-row:last-child { border-bottom: none; }
 .detail-label { font-size: 13px; color: var(--text-muted); font-weight: 500; white-space: nowrap; }
 .detail-row span:last-child { color: var(--text-main); text-align: right; }
-.header-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.header-actions {
+  display: flex; gap: var(--space-control); flex-wrap: wrap;
+  align-items: center; justify-content: flex-end;
+}
 
 .invite-link-box {
   background: rgba(233,30,140,.08); border: 1px solid rgba(233,30,140,.2);
@@ -28,7 +31,7 @@
 
 .attendees-list { display: flex; flex-direction: column; gap: 10px; }
 .attendees-header {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px;
+  display: flex; align-items: center; gap: var(--space-control); flex-wrap: wrap; margin-bottom: 18px;
 }
 .attendees-header h3 { font-size: 16px; font-weight: 700; color: var(--text-main); margin: 0; }
 .checkin-counter {
@@ -194,10 +197,18 @@
 .sig-modal-footer { display: flex; justify-content: flex-end; }
 
 @media (max-width: 768px) {
-  .header-actions { gap: 6px; }
+  .header-actions { width: 100%; justify-content: stretch; }
   .header-actions .btn-primary,
   .header-actions .btn-secondary,
-  .header-actions .btn-danger { padding: 8px 14px; font-size: 13px; }
+  .header-actions .btn-danger,
+  .header-actions .btn-invite { flex: 1 1 100%; width: 100%; }
+  .attendees-header { align-items: stretch; }
+  .attendees-header h3 { width: 100%; }
+  .btn-refresh { margin-left: 0; }
+  .attendees-header .btn-small { flex: 1 1 calc(50% - 5px); }
+  .verify-progress { width: 100%; justify-content: space-between; }
   .attendees-search { max-width: none; }
   .invite-link-box code { font-size: 11px; }
+  .sig-modal { padding: 20px 16px; }
+  .sig-modal-footer .btn-secondary { width: 100%; }
 }

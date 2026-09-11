@@ -116,7 +116,8 @@
 .scanner-actions { display: flex; justify-content: center; }
 .btn-scanner-start, .btn-scanner-stop {
   width: 100%;
-  padding: 14px;
+  min-height: 48px;
+  padding: 0 20px;
   font-size: 16px;
   font-weight: 700;
   border-radius: 12px;
