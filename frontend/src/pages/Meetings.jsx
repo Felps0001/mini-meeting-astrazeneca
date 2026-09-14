@@ -123,7 +123,11 @@ const Meetings = () => {
             <div className="meetings-search">
               <label htmlFor="meeting-search">Pesquisar eventos</label>
               <div className="meetings-search-field">
-                <Search className="meetings-search-icon" size={18} aria-hidden="true" />
+                <Search
+                  className="meetings-search-icon"
+                  size={18}
+                  aria-hidden="true"
+                />
                 <input
                   id="meeting-search"
                   type="search"

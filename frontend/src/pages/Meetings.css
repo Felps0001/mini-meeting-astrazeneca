@@ -54,6 +54,7 @@
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  color: #ffffff;
 }
 
 .meetings-search input:focus {

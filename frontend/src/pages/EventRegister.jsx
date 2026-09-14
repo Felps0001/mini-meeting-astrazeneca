@@ -135,9 +135,7 @@ const EventRegister = () => {
         // Erro de formato (400) bloqueia; demais falhas deixam o backend decidir.
         if (err.response?.status === 400) {
           setCrmStatus("invalid");
-          setCrmError(
-            err.response?.data?.message || "Número de CRM inválido",
-          );
+          setCrmError(err.response?.data?.message || "Número de CRM inválido");
         } else {
           setCrmStatus("unverified");
           setCrmError(
@@ -330,7 +328,9 @@ const EventRegister = () => {
           {crmStatus === "valid" && !crmConfirmed && (
             <div className="doctor-confirm-card">
               <div className="doctor-confirm-head">
-                <span className="doctor-confirm-badge">✔ CRM verificado no CFM</span>
+                <span className="doctor-confirm-badge">
+                  ✔ CRM verificado no CFM
+                </span>
               </div>
               <h4>{crmDoctor?.name || crmDoctorName}</h4>
               <div className="doctor-confirm-grid">
@@ -342,24 +342,43 @@ const EventRegister = () => {
                   </strong>
                 </div>
                 {crmDoctor?.situation && (
-                  <div><span>Situação</span><strong>{crmDoctor.situation}</strong></div>
+                  <div>
+                    <span>Situação</span>
+                    <strong>{crmDoctor.situation}</strong>
+                  </div>
                 )}
                 {crmDoctor?.specialty && (
-                  <div><span>Especialidade</span><strong>{crmDoctor.specialty}</strong></div>
+                  <div>
+                    <span>Especialidade</span>
+                    <strong>{crmDoctor.specialty}</strong>
+                  </div>
                 )}
                 {crmDoctor?.graduationInstitution && (
-                  <div><span>Formação</span><strong>{crmDoctor.graduationInstitution}</strong></div>
+                  <div>
+                    <span>Formação</span>
+                    <strong>{crmDoctor.graduationInstitution}</strong>
+                  </div>
                 )}
                 {crmDoctor?.graduationYear && (
-                  <div><span>Ano de formatura</span><strong>{crmDoctor.graduationYear}</strong></div>
+                  <div>
+                    <span>Ano de formatura</span>
+                    <strong>{crmDoctor.graduationYear}</strong>
+                  </div>
                 )}
                 {crmDoctor?.registrationDate && (
-                  <div><span>Inscrição CFM</span><strong>{crmDoctor.registrationDate}</strong></div>
+                  <div>
+                    <span>Inscrição CFM</span>
+                    <strong>{crmDoctor.registrationDate}</strong>
+                  </div>
                 )}
               </div>
               <p className="doctor-confirm-question">É você / é este médico?</p>
               <div className="doctor-confirm-actions">
-                <button type="button" className="btn-primary btn-full" onClick={handleConfirmDoctor}>
+                <button
+                  type="button"
+                  className="btn-primary btn-full"
+                  onClick={handleConfirmDoctor}
+                >
                   ✅ Sim, sou eu — continuar
                 </button>
                 <button
@@ -395,7 +414,9 @@ const EventRegister = () => {
                 <input
                   type="text"
                   value={form.name}
-                  onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, name: e.target.value }))
+                  }
                   placeholder="Seu nome completo"
                   required
                 />
