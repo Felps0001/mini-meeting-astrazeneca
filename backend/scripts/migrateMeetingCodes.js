@@ -13,7 +13,7 @@ async function migrateMeetingCodes() {
     let assigned = false;
     for (let attempt = 0; attempt < 20 && !assigned; attempt++) {
       try {
-        const result = await MiniMeeting.updateOne(
+        const result = await MiniMeeting.collection.updateOne(
           {
             _id: meeting._id,
             $or: [{ code: { $exists: false } }, { code: null }, { code: '' }]
