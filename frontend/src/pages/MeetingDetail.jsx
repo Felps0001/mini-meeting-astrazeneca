@@ -342,10 +342,13 @@ const MeetingDetail = () => {
             <Link to="/meetings" className="back-link">
               ← Voltar
             </Link>
-            {meeting.code && (
-              <span className="meeting-code">{meeting.code}</span>
-            )}
             <h1>{meeting.title}</h1>
+            {meeting.code && (
+              <div className="meeting-detail-code">
+                <span>Código do evento</span>
+                <strong>{meeting.code}</strong>
+              </div>
+            )}
           </div>
           <div className="header-actions">
             {meeting.status === "ativo" && (

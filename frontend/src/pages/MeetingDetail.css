@@ -18,7 +18,25 @@
   display: flex; gap: var(--space-control); flex-wrap: wrap;
   align-items: center; justify-content: flex-end;
 }
-.page-header .meeting-code { margin: 4px 0 6px; }
+.meeting-detail-code {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.meeting-detail-code strong {
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .07);
+  color: var(--text-main);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
 
 .invite-link-box {
   background: rgba(233,30,140,.08); border: 1px solid rgba(233,30,140,.2);
