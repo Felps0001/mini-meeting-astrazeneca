@@ -13,6 +13,7 @@ const Meetings = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
+  const [searchTerm, setSearchTerm] = useState("");
   const { isAdmin } = useAuth();
   const { toast, confirm } = useModal();
   const navigate = useNavigate();
@@ -62,10 +63,17 @@ const Meetings = () => {
     cancelado: meetings.filter((m) => m.status === "cancelado").length,
   };
 
-  const filtered =
-    statusFilter === "todos"
-      ? meetings
-      : meetings.filter((m) => m.status === statusFilter);
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const filtered = meetings.filter((meeting) => {
+    const matchesStatus =
+      statusFilter === "todos" || meeting.status === statusFilter;
+    const matchesSearch =
+      !normalizedSearch ||
+      meeting.title.toLowerCase().includes(normalizedSearch) ||
+      meeting.code?.toLowerCase().includes(normalizedSearch);
+
+    return matchesStatus && matchesSearch;
+  });
 
   const filterTabs = [
     { key: "todos", label: "Todos" },
@@ -109,6 +117,16 @@ const Meetings = () => {
                   <span className="tab-count">{statusCounts[tab.key]}</span>
                 </button>
               ))}
+            </div>
+
+            <div className="meetings-search">
+              <input
+                type="search"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Pesquisar por nome ou código do evento"
+                aria-label="Pesquisar por nome ou código do evento"
+              />
             </div>
 
             {filtered.length === 0 ? (

@@ -8,6 +8,14 @@
   flex-wrap: wrap;
 }
 
+.meetings-search {
+  margin-bottom: 20px;
+}
+
+.meetings-search input {
+  width: min(100%, 420px);
+}
+
 .filter-tab {
   display: inline-flex;
   align-items: center;
