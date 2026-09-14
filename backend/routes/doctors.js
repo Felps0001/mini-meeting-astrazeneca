@@ -11,10 +11,12 @@ router.get('/', authMiddleware, adminMiddleware, async (req, res) => {
     const filter = {};
     if (search && search.trim()) {
       const term = search.trim();
-      filter.$or = [
-        { name: { $regex: term, $options: 'i' } },
-        { crm: { $regex: term.replace(/\D/g, ''), $options: 'i' } }
-      ];
+      const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const crmDigits = term.replace(/\D/g, '');
+      filter.$or = [{ name: { $regex: escapedTerm, $options: 'i' } }];
+      if (crmDigits) {
+        filter.$or.push({ crm: { $regex: crmDigits, $options: 'i' } });
+      }
     }
     const doctors = await Doctor.find(filter)
       .select('-meetings.meetingTitle')

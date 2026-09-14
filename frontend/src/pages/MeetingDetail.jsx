@@ -100,7 +100,9 @@ const MeetingDetail = () => {
       if (data.skipped > 0)
         parts.push(`${data.skipped} duplicado(s) ignorado(s)`);
       if (data.pendingVerification > 0)
-        parts.push(`${data.pendingVerification} CRM(s) pendente(s) de verificação`);
+        parts.push(
+          `${data.pendingVerification} CRM(s) pendente(s) de verificação`,
+        );
       if (data.errors.length > 0) parts.push(`${data.errors.length} erro(s)`);
       toast(parts.join(", "), data.inserted > 0 ? "success" : "warning");
       await loadMeeting();
@@ -148,9 +150,15 @@ const MeetingDetail = () => {
       const { data } = await api.get(
         `/meetings/${id}/attendees/${attendee._id}/signature`,
       );
-      setViewingSignature({ name: data.name || attendee.name, url: data.signature });
+      setViewingSignature({
+        name: data.name || attendee.name,
+        url: data.signature,
+      });
     } catch (err) {
-      toast(err.response?.data?.message || "Erro ao carregar assinatura", "error");
+      toast(
+        err.response?.data?.message || "Erro ao carregar assinatura",
+        "error",
+      );
     } finally {
       setSignatureLoadingId(null);
     }
@@ -158,7 +166,8 @@ const MeetingDetail = () => {
 
   const handleVerifyCRMs = async () => {
     const pending = meeting.attendees.filter(
-      (attendee) => attendee.crm && attendee.crmUf && attendee.crmVerified == null,
+      (attendee) =>
+        attendee.crm && attendee.crmUf && attendee.crmVerified == null,
     );
     if (pending.length === 0) return;
 
@@ -280,7 +289,8 @@ const MeetingDetail = () => {
     : meeting.attendees;
   const checkedInCount = meeting.attendees.filter((a) => a.checkedIn).length;
   const pendingCrmCount = meeting.attendees.filter(
-    (attendee) => attendee.crm && attendee.crmUf && attendee.crmVerified == null,
+    (attendee) =>
+      attendee.crm && attendee.crmUf && attendee.crmVerified == null,
   ).length;
 
   return (
@@ -485,8 +495,9 @@ const MeetingDetail = () => {
                 </button>
               </>
             )}
-            {canEdit && pendingCrmCount > 0 && (
-              verifying ? (
+            {canEdit &&
+              pendingCrmCount > 0 &&
+              (verifying ? (
                 <span className="verify-progress">
                   Verificando {verifyProgress?.current}/{verifyProgress?.total}
                   <button
@@ -507,8 +518,7 @@ const MeetingDetail = () => {
                 >
                   Verificar CRMs ({pendingCrmCount})
                 </button>
-              )
-            )}
+              ))}
           </div>
 
           {meeting.attendees.length === 0 ? (

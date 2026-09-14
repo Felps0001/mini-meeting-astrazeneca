@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import api from "../services/api";
 import Navbar from "../components/Navbar";
 import { useModal } from "../context/ModalContext";
@@ -12,19 +12,25 @@ const Doctors = () => {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const latestRequestRef = useRef(0);
 
   const fetchDoctors = (term = "") => {
+    const requestId = ++latestRequestRef.current;
     setLoading(true);
+    setError("");
     api
       .get("/doctors", { params: term ? { search: term } : {} })
-      .then((res) => setDoctors(res.data))
-      .catch(() => setError("Erro ao carregar médicos"))
-      .finally(() => setLoading(false));
+      .then((res) => {
+        if (requestId === latestRequestRef.current) setDoctors(res.data);
+      })
+      .catch(() => {
+        if (requestId === latestRequestRef.current)
+          setError("Erro ao carregar médicos");
+      })
+      .finally(() => {
+        if (requestId === latestRequestRef.current) setLoading(false);
+      });
   };
-
-  useEffect(() => {
-    fetchDoctors();
-  }, []);
 
   useEffect(() => {
     const id = setTimeout(() => fetchDoctors(search.trim()), 400);
