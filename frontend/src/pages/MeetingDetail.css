@@ -18,6 +18,7 @@
   display: flex; gap: var(--space-control); flex-wrap: wrap;
   align-items: center; justify-content: flex-end;
 }
+.page-header .meeting-code { margin: 4px 0 6px; }
 
 .invite-link-box {
   background: rgba(233,30,140,.08); border: 1px solid rgba(233,30,140,.2);

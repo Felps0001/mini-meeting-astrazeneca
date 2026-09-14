@@ -5,6 +5,7 @@ const axios = require('axios');
 const MiniMeeting = require('../models/MiniMeeting');
 const Attendance = require('../models/Attendance');
 const Doctor = require('../models/Doctor');
+const { generateMeetingCode } = require('../utils/meetingCode');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 
 // GET /api/meetings - admin vê todos, user vê só os seus
@@ -198,6 +199,17 @@ async function processImportedAttendees(meetingId, meetingTitle, entries) {
   }
 }
 
+async function createMeetingWithUniqueCode(data) {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      return await MiniMeeting.create({ ...data, code: generateMeetingCode() });
+    } catch (error) {
+      if (error?.code !== 11000 || !error?.keyPattern?.code) throw error;
+    }
+  }
+  throw new Error('Não foi possível gerar um código único para o meeting');
+}
+
 router.get('/validate-crm', async (req, res) => {
   const { crm, uf } = req.query;
   if (!crm || !uf)
@@ -288,7 +300,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
     const inviteToken = uuidv4();
 
-    const meeting = await MiniMeeting.create({
+    const meeting = await createMeetingWithUniqueCode({
       title, description, location, date, startTime, endTime,
       organizer: req.user.id,
       inviteToken
@@ -603,6 +615,7 @@ router.get('/invite/:token', async (req, res) => {
 
     res.json({
       id: meeting._id,
+      code: meeting.code,
       title: meeting.title,
       description: meeting.description,
       location: meeting.location,

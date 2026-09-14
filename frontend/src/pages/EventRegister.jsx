@@ -246,6 +246,7 @@ const EventRegister = () => {
       <div className="event-card">
         <div className="event-header">
           <img src={logoAstra} alt="AstraZeneca" className="event-brand-logo" />
+          {event.code && <span className="meeting-code">{event.code}</span>}
           <h1>{event.title}</h1>
           {event.description && (
             <p className="event-description">{event.description}</p>

@@ -23,6 +23,7 @@
 }
 .event-header { text-align: center; margin-bottom: 28px; }
 .event-brand-logo { height: 44px; width: auto; object-fit: contain; margin-bottom: 16px; }
+.event-header .meeting-code { margin: 0 auto 10px; }
 .event-icon { font-size: 52px; margin-bottom: 12px; }
 .event-header h1 { font-size: 22px; font-weight: 800; color: var(--white); }
 .event-description { color: rgba(255,255,255,.65); margin-top: 8px; font-size: 14px; }

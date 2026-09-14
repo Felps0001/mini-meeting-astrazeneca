@@ -128,6 +128,7 @@ const Meetings = () => {
                 <table className="meetings-table">
                   <thead>
                     <tr>
+                      <th>Código</th>
                       <th>Título</th>
                       <th>Local</th>
                       <th>Data</th>
@@ -141,6 +142,9 @@ const Meetings = () => {
                   <tbody>
                     {filtered.map((m) => (
                       <tr key={m._id}>
+                        <td>
+                          <span className="meeting-code">{m.code || "—"}</span>
+                        </td>
                         <td>
                           <Link
                             to={`/meetings/${m._id}`}

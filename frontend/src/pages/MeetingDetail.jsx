@@ -342,6 +342,9 @@ const MeetingDetail = () => {
             <Link to="/meetings" className="back-link">
               ← Voltar
             </Link>
+            {meeting.code && (
+              <span className="meeting-code">{meeting.code}</span>
+            )}
             <h1>{meeting.title}</h1>
           </div>
           <div className="header-actions">

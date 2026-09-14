@@ -1,6 +1,14 @@
 const mongoose = require('mongoose');
 
 const miniMeetingSchema = new mongoose.Schema({
+  code: {
+    type: String,
+    required: true,
+    immutable: true,
+    trim: true,
+    uppercase: true,
+    match: /^AZ-\d{6}$/
+  },
   title: { type: String, required: true, trim: true },
   description: { type: String, trim: true },
   location: { type: String, required: true, trim: true },
@@ -17,5 +25,6 @@ const miniMeetingSchema = new mongoose.Schema({
 
 miniMeetingSchema.index({ organizer: 1, date: -1 });
 miniMeetingSchema.index({ status: 1, date: -1 });
+miniMeetingSchema.index({ code: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('MiniMeeting', miniMeetingSchema);

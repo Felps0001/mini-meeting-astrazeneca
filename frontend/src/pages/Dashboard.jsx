@@ -101,6 +101,9 @@ const Dashboard = () => {
                     })}
                   </span>
                 </div>
+                {meeting.code && (
+                  <span className="meeting-code">{meeting.code}</span>
+                )}
                 <h3 className="meeting-title">{meeting.title}</h3>
                 <div className="meeting-meta">
                   <span>📍 {meeting.location}</span>

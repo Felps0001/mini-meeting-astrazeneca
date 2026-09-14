@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
 const migrateAttendees = require('./scripts/migrateAttendees');
+const migrateMeetingCodes = require('./scripts/migrateMeetingCodes');
 
 const app = express();
 
@@ -33,6 +34,7 @@ const PORT = process.env.PORT || 5000;
 async function startServer() {
   await connectDB();
   await migrateAttendees();
+  await migrateMeetingCodes();
   app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
 }
 

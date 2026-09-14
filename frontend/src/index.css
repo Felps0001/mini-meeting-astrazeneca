@@ -239,6 +239,14 @@ textarea:focus-visible {
 .role-admin { background: rgba(233,30,140,.2); color: #f48fb1; border: 1px solid rgba(233,30,140,.35); }
 .role-user { background: rgba(156,39,176,.15); color: #ce93d8; border: 1px solid rgba(156,39,176,.3); }
 
+.meeting-code {
+  display: inline-flex; align-items: center; width: fit-content;
+  padding: 3px 8px; border-radius: 6px;
+  background: rgba(255,255,255,.07); border: 1px solid var(--border);
+  color: var(--text-muted); font-size: 11px; font-weight: 700;
+  font-variant-numeric: tabular-nums; letter-spacing: 0; white-space: nowrap;
+}
+
 /* ====== CARDS ====== */
 .form-card {
   background: var(--bg-card); border-radius: var(--radius-lg); padding: 28px;
