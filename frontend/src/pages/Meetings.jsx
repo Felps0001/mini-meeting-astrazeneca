@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { useModal } from "../context/ModalContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Search, X } from "lucide-react";
 import "./Meetings.css";
 
 const Meetings = () => {
@@ -120,13 +121,29 @@ const Meetings = () => {
             </div>
 
             <div className="meetings-search">
-              <input
-                type="search"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Pesquisar por nome ou código do evento"
-                aria-label="Pesquisar por nome ou código do evento"
-              />
+              <label htmlFor="meeting-search">Pesquisar eventos</label>
+              <div className="meetings-search-field">
+                <Search className="meetings-search-icon" size={18} aria-hidden="true" />
+                <input
+                  id="meeting-search"
+                  type="search"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Nome ou código do evento"
+                  aria-label="Pesquisar por nome ou código do evento"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    className="meetings-search-clear"
+                    onClick={() => setSearchTerm("")}
+                    aria-label="Limpar pesquisa"
+                    title="Limpar pesquisa"
+                  >
+                    <X size={16} aria-hidden="true" />
+                  </button>
+                )}
+              </div>
             </div>
 
             {filtered.length === 0 ? (
