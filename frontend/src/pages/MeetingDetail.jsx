@@ -156,8 +156,15 @@ const MeetingDetail = () => {
 
   const handleExportCSV = () => {
     const headers = [
-      "Nome", "E-mail", "CRM", "Telefone", "Cidade", "Check-in",
-      "Data do check-in", "Data da inscrição", "Assinatura registrada",
+      "Nome",
+      "E-mail",
+      "CRM",
+      "Telefone",
+      "Cidade",
+      "Check-in",
+      "Data do check-in",
+      "Data da inscrição",
+      "Assinatura registrada",
     ];
     const rows = meeting.attendees.map((attendee) => [
       attendee.name,
@@ -178,7 +185,11 @@ const MeetingDetail = () => {
       .map((row) => row.map(escapeCSVValue).join(","))
       .join("\r\n");
 
-    downloadFile(`\uFEFF${content}`, "text/csv;charset=utf-8;", getExportFileName("csv"));
+    downloadFile(
+      `\uFEFF${content}`,
+      "text/csv;charset=utf-8;",
+      getExportFileName("csv"),
+    );
   };
 
   const handleExportPDF = async () => {
@@ -205,7 +216,9 @@ const MeetingDetail = () => {
           meeting.code && `Código: ${meeting.code}`,
           meeting.location,
           format(new Date(meeting.date), "dd/MM/yyyy"),
-        ].filter(Boolean).join(" | ");
+        ]
+          .filter(Boolean)
+          .join(" | ");
         document.text(eventInfo, margin, y);
         y += 10;
       };
@@ -227,12 +240,26 @@ const MeetingDetail = () => {
         document.line(margin, y - 3, pageWidth - margin, y - 3);
         document.setFont("helvetica", "bold");
         document.setFontSize(11);
-        document.text(`${index + 1}. ${attendee.name || "Participante"}`, margin, y + 4);
+        document.text(
+          `${index + 1}. ${attendee.name || "Participante"}`,
+          margin,
+          y + 4,
+        );
         document.setFont("helvetica", "normal");
         document.setFontSize(9);
-        const crm = attendee.crm ? `CRM: ${attendee.crm}/${attendee.crmUf || ""}` : "CRM: não informado";
-        document.text(`${attendee.email || "E-mail não informado"} | ${crm}`, margin, y + 10);
-        document.text(`Telefone: ${attendee.phone || "não informado"} | Cidade: ${attendee.city || "não informada"}`, margin, y + 16);
+        const crm = attendee.crm
+          ? `CRM: ${attendee.crm}/${attendee.crmUf || ""}`
+          : "CRM: não informado";
+        document.text(
+          `${attendee.email || "E-mail não informado"} | ${crm}`,
+          margin,
+          y + 10,
+        );
+        document.text(
+          `Telefone: ${attendee.phone || "não informado"} | Cidade: ${attendee.city || "não informada"}`,
+          margin,
+          y + 16,
+        );
         const attendance = attendee.checkedIn
           ? `Presença confirmada${attendee.checkedInAt ? ` em ${format(new Date(attendee.checkedInAt), "dd/MM/yyyy HH:mm")}` : ""}`
           : "Presença não confirmada";
@@ -259,7 +286,12 @@ const MeetingDetail = () => {
         document.setPage(page);
         document.setFontSize(8);
         document.setTextColor(110, 110, 110);
-        document.text(`Página ${page} de ${pageCount}`, pageWidth - margin, pageHeight - 8, { align: "right" });
+        document.text(
+          `Página ${page} de ${pageCount}`,
+          pageWidth - margin,
+          pageHeight - 8,
+          { align: "right" },
+        );
         document.setTextColor(0, 0, 0);
       }
 
@@ -495,7 +527,10 @@ const MeetingDetail = () => {
           </div>
           <div className="header-actions">
             {meeting.status === "ativo" && (
-              <button className="btn-invite meeting-header-action" onClick={copyInviteLink}>
+              <button
+                className="btn-invite meeting-header-action"
+                onClick={copyInviteLink}
+              >
                 {copied ? "Link copiado" : "Copiar link de inscrição"}
               </button>
             )}
@@ -511,12 +546,18 @@ const MeetingDetail = () => {
               </button>
             )}
             {canEdit && (
-              <Link to={`/meetings/${id}/scan`} className="btn-invite meeting-header-action">
+              <Link
+                to={`/meetings/${id}/scan`}
+                className="btn-invite meeting-header-action"
+              >
                 Escanear check-in
               </Link>
             )}
             {canEdit && (
-              <Link to={`/meetings/${id}/edit`} className="btn-secondary meeting-header-action">
+              <Link
+                to={`/meetings/${id}/edit`}
+                className="btn-secondary meeting-header-action"
+              >
                 Editar evento
               </Link>
             )}
@@ -576,7 +617,7 @@ const MeetingDetail = () => {
                   className="btn-warn"
                   onClick={() => handleStatusChange("encerrado")}
                 >
-                  Encerrar evento
+                  Concluir evento
                 </button>
                 <button
                   className="btn-danger"
