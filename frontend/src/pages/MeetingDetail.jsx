@@ -652,7 +652,7 @@ const MeetingDetail = () => {
               </span>
             )}
             <button
-              className="btn-small btn-refresh"
+              className="btn-small btn-refresh attendees-header-action"
               onClick={handleRefresh}
               disabled={refreshing}
               title="Atualizar lista"
@@ -662,7 +662,7 @@ const MeetingDetail = () => {
             {meeting.attendees.length > 0 && (
               <>
                 <button
-                  className="btn-small btn-export-csv"
+                  className="btn-small btn-export-csv attendees-header-action"
                   onClick={handleExportCSV}
                   title="Baixar dados dos participantes em CSV"
                 >
@@ -670,7 +670,7 @@ const MeetingDetail = () => {
                   Baixar CSV
                 </button>
                 <button
-                  className="btn-small btn-export-pdf"
+                  className="btn-small btn-export-pdf attendees-header-action"
                   onClick={handleExportPDF}
                   disabled={exporting === "pdf"}
                   title="Baixar lista de participantes com assinaturas em PDF"
@@ -690,7 +690,7 @@ const MeetingDetail = () => {
                   onChange={handleCSVImport}
                 />
                 <button
-                  className="btn-small btn-import"
+                  className="btn-small btn-import attendees-header-action"
                   onClick={() => csvInputRef.current?.click()}
                   disabled={importing}
                   title="Importar participantes via CSV"
@@ -698,7 +698,7 @@ const MeetingDetail = () => {
                   {importing ? "Importando..." : "Importar participantes"}
                 </button>
                 <button
-                  className="btn-small btn-template"
+                  className="btn-small btn-template attendees-header-action"
                   onClick={downloadTemplate}
                   title="Baixar modelo CSV"
                 >
@@ -723,7 +723,7 @@ const MeetingDetail = () => {
                 </span>
               ) : (
                 <button
-                  className="btn-small btn-verify-crm"
+                  className="btn-small btn-verify-crm attendees-header-action"
                   onClick={handleVerifyCRMs}
                   title="Verificar CRMs pendentes"
                 >

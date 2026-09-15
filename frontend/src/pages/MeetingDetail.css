@@ -62,6 +62,15 @@
   display: flex; align-items: center; gap: var(--space-control); flex-wrap: wrap; margin-bottom: 18px;
 }
 .attendees-header h3 { font-size: 16px; font-weight: 700; color: var(--text-main); margin: 0; }
+.attendees-header .attendees-header-action {
+  background: rgba(156, 39, 176, .12) !important;
+  border: 1px solid rgba(156, 39, 176, .35) !important;
+  color: #ce93d8 !important;
+}
+.attendees-header .attendees-header-action:hover:not(:disabled) {
+  background: rgba(156, 39, 176, .22) !important;
+  border-color: rgba(206, 147, 216, .55) !important;
+}
 .checkin-counter {
   font-size: 13px; font-weight: 600; color: #2ed573;
   background: rgba(46, 213, 115, 0.1); border: 1px solid rgba(46, 213, 115, 0.3);
