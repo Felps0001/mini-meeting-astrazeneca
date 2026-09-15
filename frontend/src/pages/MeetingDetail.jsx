@@ -521,7 +521,7 @@ const MeetingDetail = () => {
               </Link>
             )}
             {isAdmin && (
-              <button className="btn-danger meeting-header-action" onClick={handleDelete}>
+              <button className="btn-danger" onClick={handleDelete}>
                 Excluir evento
               </button>
             )}
