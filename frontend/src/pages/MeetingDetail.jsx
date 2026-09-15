@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { useModal } from "../context/ModalContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Download, FileText } from "lucide-react";
 import "./MeetingDetail.css";
 
 const MeetingDetail = () => {
@@ -22,6 +23,7 @@ const MeetingDetail = () => {
   const [attendeeFilter, setAttendeeFilter] = useState("");
   const [viewingSignature, setViewingSignature] = useState(null); // { name, url }
   const [signatureLoadingId, setSignatureLoadingId] = useState(null);
+  const [exporting, setExporting] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [verifyProgress, setVerifyProgress] = useState(null); // { current, total }
   const verifyAbortRef = useRef(false);
@@ -126,6 +128,147 @@ const MeetingDetail = () => {
     a.download = "modelo-participantes.csv";
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const getExportFileName = (extension) => {
+    const eventName = meeting.title
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .toLowerCase();
+    return `participantes-${eventName || "meeting"}.${extension}`;
+  };
+
+  const downloadFile = (content, type, fileName) => {
+    const url = URL.createObjectURL(new Blob([content], { type }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const escapeCSVValue = (value) => {
+    const text = String(value ?? "");
+    return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+
+  const handleExportCSV = () => {
+    const headers = [
+      "Nome", "E-mail", "CRM", "Telefone", "Cidade", "Check-in",
+      "Data do check-in", "Data da inscrição", "Assinatura registrada",
+    ];
+    const rows = meeting.attendees.map((attendee) => [
+      attendee.name,
+      attendee.email,
+      attendee.crm ? `${attendee.crm}/${attendee.crmUf || ""}` : "",
+      attendee.phone,
+      attendee.city,
+      attendee.checkedIn ? "Sim" : "Não",
+      attendee.checkedInAt
+        ? format(new Date(attendee.checkedInAt), "dd/MM/yyyy HH:mm")
+        : "",
+      attendee.registeredAt
+        ? format(new Date(attendee.registeredAt), "dd/MM/yyyy HH:mm")
+        : "",
+      attendee.hasSignature ? "Sim" : "Não",
+    ]);
+    const content = [headers, ...rows]
+      .map((row) => row.map(escapeCSVValue).join(","))
+      .join("\r\n");
+
+    downloadFile(`\uFEFF${content}`, "text/csv;charset=utf-8;", getExportFileName("csv"));
+  };
+
+  const handleExportPDF = async () => {
+    setExporting("pdf");
+    try {
+      const { jsPDF } = await import("jspdf");
+      const document = new jsPDF({ unit: "mm", format: "a4" });
+      const pageWidth = document.internal.pageSize.getWidth();
+      const pageHeight = document.internal.pageSize.getHeight();
+      const margin = 16;
+      let y = margin;
+
+      const addHeader = () => {
+        document.setFont("helvetica", "bold");
+        document.setFontSize(16);
+        document.text("Lista de participantes", margin, y);
+        y += 7;
+        document.setFontSize(11);
+        document.text(meeting.title, margin, y);
+        y += 5;
+        document.setFont("helvetica", "normal");
+        document.setFontSize(9);
+        const eventInfo = [
+          meeting.code && `Código: ${meeting.code}`,
+          meeting.location,
+          format(new Date(meeting.date), "dd/MM/yyyy"),
+        ].filter(Boolean).join(" | ");
+        document.text(eventInfo, margin, y);
+        y += 10;
+      };
+
+      const addPage = () => {
+        document.addPage();
+        y = margin;
+        addHeader();
+      };
+
+      addHeader();
+      for (let index = 0; index < meeting.attendees.length; index++) {
+        const attendee = meeting.attendees[index];
+        const hasSignature = attendee.hasSignature;
+        const rowHeight = hasSignature ? 55 : 31;
+        if (y + rowHeight > pageHeight - margin) addPage();
+
+        document.setDrawColor(210, 210, 210);
+        document.line(margin, y - 3, pageWidth - margin, y - 3);
+        document.setFont("helvetica", "bold");
+        document.setFontSize(11);
+        document.text(`${index + 1}. ${attendee.name || "Participante"}`, margin, y + 4);
+        document.setFont("helvetica", "normal");
+        document.setFontSize(9);
+        const crm = attendee.crm ? `CRM: ${attendee.crm}/${attendee.crmUf || ""}` : "CRM: não informado";
+        document.text(`${attendee.email || "E-mail não informado"} | ${crm}`, margin, y + 10);
+        document.text(`Telefone: ${attendee.phone || "não informado"} | Cidade: ${attendee.city || "não informada"}`, margin, y + 16);
+        const attendance = attendee.checkedIn
+          ? `Presença confirmada${attendee.checkedInAt ? ` em ${format(new Date(attendee.checkedInAt), "dd/MM/yyyy HH:mm")}` : ""}`
+          : "Presença não confirmada";
+        document.text(attendance, margin, y + 22);
+
+        if (hasSignature) {
+          try {
+            const { data } = await api.get(
+              `/meetings/${id}/attendees/${attendee._id}/signature`,
+            );
+            document.setFontSize(8);
+            document.text("Assinatura", margin, y + 30);
+            document.addImage(data.signature, "PNG", margin, y + 32, 72, 20);
+          } catch {
+            document.setFontSize(8);
+            document.text("Assinatura indisponível", margin, y + 32);
+          }
+        }
+        y += rowHeight;
+      }
+
+      const pageCount = document.getNumberOfPages();
+      for (let page = 1; page <= pageCount; page++) {
+        document.setPage(page);
+        document.setFontSize(8);
+        document.setTextColor(110, 110, 110);
+        document.text(`Página ${page} de ${pageCount}`, pageWidth - margin, pageHeight - 8, { align: "right" });
+        document.setTextColor(0, 0, 0);
+      }
+
+      document.save(getExportFileName("pdf"));
+    } catch (err) {
+      toast(err.response?.data?.message || "Erro ao gerar PDF", "error");
+    } finally {
+      setExporting("");
+    }
   };
 
   const loadMeeting = () => {
@@ -475,6 +618,27 @@ const MeetingDetail = () => {
             >
               {refreshing ? "Atualizando..." : "Atualizar"}
             </button>
+            {meeting.attendees.length > 0 && (
+              <>
+                <button
+                  className="btn-small btn-export-csv"
+                  onClick={handleExportCSV}
+                  title="Baixar dados dos participantes em CSV"
+                >
+                  <Download size={15} aria-hidden="true" />
+                  Baixar CSV
+                </button>
+                <button
+                  className="btn-small btn-export-pdf"
+                  onClick={handleExportPDF}
+                  disabled={exporting === "pdf"}
+                  title="Baixar lista de participantes com assinaturas em PDF"
+                >
+                  <FileText size={15} aria-hidden="true" />
+                  {exporting === "pdf" ? "Gerando PDF..." : "Baixar PDF"}
+                </button>
+              </>
+            )}
             {canEdit && (
               <>
                 <input

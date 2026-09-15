@@ -74,6 +74,24 @@
   color: #ce93d8;
 }
 .btn-template:hover { background: rgba(156, 39, 176, 0.2); }
+.btn-export-csv,
+.btn-export-pdf {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-export-csv {
+  background: rgba(0, 229, 160, .1);
+  border: 1px solid rgba(0, 229, 160, .3);
+  color: #5eead4;
+}
+.btn-export-csv:hover { background: rgba(0, 229, 160, .18); }
+.btn-export-pdf {
+  background: rgba(233, 30, 140, .12);
+  border: 1px solid rgba(233, 30, 140, .35);
+  color: #f9a8d4;
+}
+.btn-export-pdf:hover:not(:disabled) { background: rgba(233, 30, 140, .2); }
 .btn-verify-crm {
   background: rgba(59, 130, 246, .12); border: 1px solid rgba(59, 130, 246, .35);
   color: #93c5fd;
