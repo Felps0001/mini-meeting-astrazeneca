@@ -495,33 +495,33 @@ const MeetingDetail = () => {
           </div>
           <div className="header-actions">
             {meeting.status === "ativo" && (
-              <button className="btn-invite" onClick={copyInviteLink}>
+              <button className="btn-invite meeting-header-action" onClick={copyInviteLink}>
                 {copied ? "Link copiado" : "Copiar link de inscrição"}
               </button>
             )}
             {meeting.status === "ativo" && (
               <button
-                className="btn-invite btn-qr"
+                className="btn-invite meeting-header-action"
                 onClick={() => {
                   const link = `${window.location.origin}${import.meta.env.BASE_URL}event/${meeting.inviteToken}/qrcode`;
                   window.open(link, "_blank", "noopener,noreferrer");
                 }}
               >
-                QR Codes de check-in
+                Check-in
               </button>
             )}
             {canEdit && (
-              <Link to={`/meetings/${id}/scan`} className="btn-invite btn-scan">
+              <Link to={`/meetings/${id}/scan`} className="btn-invite meeting-header-action">
                 Escanear check-in
               </Link>
             )}
             {canEdit && (
-              <Link to={`/meetings/${id}/edit`} className="btn-secondary">
+              <Link to={`/meetings/${id}/edit`} className="btn-secondary meeting-header-action">
                 Editar evento
               </Link>
             )}
             {isAdmin && (
-              <button className="btn-danger" onClick={handleDelete}>
+              <button className="btn-danger meeting-header-action" onClick={handleDelete}>
                 Excluir evento
               </button>
             )}

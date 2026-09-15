@@ -34,11 +34,11 @@ const Dashboard = () => {
       <main className="main-content">
         <div className="page-header">
           <h1>Olá, {user?.name} 👋</h1>
-          <p className="page-subtitle">
+          {/* <p className="page-subtitle">
             {isAdmin
               ? "Visão geral de todos os mini-meetings"
               : "Seus mini-meetings"}
-          </p>
+          </p> */}
         </div>
 
         <div className="stats-grid">

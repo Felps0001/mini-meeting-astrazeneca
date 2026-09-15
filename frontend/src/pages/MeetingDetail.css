@@ -18,6 +18,15 @@
   display: flex; gap: var(--space-control); flex-wrap: wrap;
   align-items: center; justify-content: flex-end;
 }
+.header-actions .meeting-header-action {
+  background: rgba(156, 39, 176, .12) !important;
+  border: 1px solid rgba(156, 39, 176, .35) !important;
+  color: #ce93d8 !important;
+}
+.header-actions .meeting-header-action:hover:not(:disabled) {
+  background: rgba(156, 39, 176, .22) !important;
+  border-color: rgba(206, 147, 216, .55) !important;
+}
 .meeting-detail-code {
   display: flex;
   align-items: center;
