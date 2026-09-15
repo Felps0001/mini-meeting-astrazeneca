@@ -1,0 +1,48 @@
+.reception-page {
+  min-height: 100vh;
+  padding: 28px 20px;
+  background: var(--bg-deep);
+  color: var(--text-main);
+}
+.reception-shell { width: min(100%, 900px); margin: 0 auto; }
+.reception-header {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 18px; align-items: center;
+  padding: 20px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-card); box-shadow: var(--shadow);
+}
+.reception-header img { width: 104px; height: auto; }
+.reception-header span { color: #ce93d8; font-size: 12px; font-weight: 700; }
+.reception-header h1 { margin: 2px 0; font-size: 22px; }
+.reception-header p { color: var(--text-muted); font-size: 13px; }
+.reception-counter { display: flex; flex-direction: column; align-items: flex-end; color: var(--text-muted); font-size: 12px; }
+.reception-counter strong { color: var(--success); font-size: 27px; line-height: 1; }
+.reception-tools { display: flex; gap: 10px; margin: 22px 0 14px; }
+.reception-search { display: flex; align-items: center; flex: 1; gap: 10px; padding: 0 13px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-input); }
+.reception-search:focus-within { border-color: var(--border-focus); box-shadow: 0 0 0 3px var(--primary-light); }
+.reception-search svg { color: var(--text-muted); flex: 0 0 auto; }
+.reception-search input { width: 100%; min-width: 0; height: 46px; border: 0; outline: 0; background: transparent; color: var(--text-main); font-size: 16px; }
+.reception-search span { color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+.reception-scan-button, .reception-attendee button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid rgba(156,39,176,.45); border-radius: 8px; background: rgba(156,39,176,.18); color: #e9d5ff; font-size: 14px; font-weight: 700; cursor: pointer; }
+.reception-scan-button { min-height: 46px; padding: 0 16px; white-space: nowrap; }
+.reception-scan-button:hover, .reception-attendee button:hover:not(:disabled) { background: rgba(156,39,176,.3); }
+.reception-scanner { max-width: 420px; margin: 16px auto; overflow: hidden; border-radius: 8px; border: 1px solid var(--border); }
+.reception-message { margin: 16px 0; color: var(--text-muted); text-align: center; }
+.reception-results { display: flex; flex-direction: column; gap: 10px; }
+.reception-attendee { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 18px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); }
+.reception-attendee.is-checked-in { border-color: rgba(0,229,160,.32); }
+.reception-attendee h2 { font-size: 16px; margin: 0 0 4px; }
+.reception-attendee p { color: var(--text-muted); font-size: 13px; }
+.reception-attendee button { min-height: 38px; padding: 0 13px; }
+.reception-attendee button:disabled { opacity: .55; cursor: wait; }
+.reception-done { color: var(--success); font-weight: 700; font-size: 13px; }
+.reception-error { color: var(--danger); text-align: center; }
+@media (max-width: 600px) {
+  .reception-page { padding: 16px; }
+  .reception-header { grid-template-columns: 1fr auto; gap: 12px; }
+  .reception-header img { width: 90px; }
+  .reception-header > div:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  .reception-tools { flex-direction: column; }
+  .reception-scan-button { width: 100%; }
+  .reception-attendee { align-items: flex-start; flex-direction: column; }
+  .reception-attendee button { width: 100%; }
+}

@@ -18,6 +18,7 @@ const MeetingDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [receptionCopied, setReceptionCopied] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [attendeeFilter, setAttendeeFilter] = useState("");
@@ -407,6 +408,13 @@ const MeetingDetail = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const copyReceptionLink = () => {
+    const link = `${window.location.origin}${import.meta.env.BASE_URL}reception/${meeting.receptionToken}`;
+    navigator.clipboard.writeText(link);
+    setReceptionCopied(true);
+    setTimeout(() => setReceptionCopied(false), 2000);
+  };
+
   const handleDelete = async () => {
     if (!(await confirm("Excluir este meeting?"))) return;
     try {
@@ -552,6 +560,24 @@ const MeetingDetail = () => {
               >
                 Escanear check-in
               </Link>
+            )}
+            {meeting.status === "ativo" && canEdit && meeting.receptionToken && (
+              <>
+                <a
+                  href={`${window.location.origin}${import.meta.env.BASE_URL}reception/${meeting.receptionToken}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-invite meeting-header-action"
+                >
+                  Modo recepção
+                </a>
+                <button
+                  className="btn-invite meeting-header-action"
+                  onClick={copyReceptionLink}
+                >
+                  {receptionCopied ? "Link copiado" : "Copiar link da recepção"}
+                </button>
+              </>
             )}
             {canEdit && (
               <Link

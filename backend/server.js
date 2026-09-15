@@ -4,6 +4,7 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const migrateAttendees = require('./scripts/migrateAttendees');
 const migrateMeetingCodes = require('./scripts/migrateMeetingCodes');
+const migrateReceptionTokens = require('./scripts/migrateReceptionTokens');
 
 const app = express();
 
@@ -35,6 +36,7 @@ async function startServer() {
   await connectDB();
   await migrateAttendees();
   await migrateMeetingCodes();
+  await migrateReceptionTokens();
   app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
 }
 

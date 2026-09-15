@@ -299,11 +299,13 @@ router.post('/', authMiddleware, async (req, res) => {
     }
 
     const inviteToken = uuidv4();
+    const receptionToken = uuidv4();
 
     const meeting = await createMeetingWithUniqueCode({
       title, description, location, date, startTime, endTime,
       organizer: req.user.id,
-      inviteToken
+      inviteToken,
+      receptionToken
     });
 
     res.status(201).json(meeting);
@@ -624,6 +626,106 @@ router.get('/invite/:token', async (req, res) => {
       endTime: meeting.endTime,
       organizer: meeting.organizer.name
     });
+  } catch {
+    res.status(500).json({ message: 'Erro interno' });
+  }
+});
+
+// GET /api/meetings/reception/:token - dados da tela de recepção exclusiva do evento
+router.get('/reception/:token', async (req, res) => {
+  try {
+    const meeting = await MiniMeeting.findOne({ receptionToken: req.params.token })
+      .select('title code location date startTime endTime status attendeeCount checkedInCount')
+      .lean();
+    if (!meeting || meeting.status !== 'ativo')
+      return res.status(404).json({ message: 'Recepção indisponível para este evento' });
+    res.json(meeting);
+  } catch {
+    res.status(500).json({ message: 'Erro interno' });
+  }
+});
+
+// GET /api/meetings/reception/:token/attendees?q= - busca limitada ao evento da recepção
+router.get('/reception/:token/attendees', async (req, res) => {
+  try {
+    const query = String(req.query.q || '').trim();
+    if (query.length < 2)
+      return res.status(400).json({ message: 'Digite ao menos 2 caracteres' });
+
+    const meeting = await MiniMeeting.findOne({ receptionToken: req.params.token })
+      .select('_id status');
+    if (!meeting || meeting.status !== 'ativo')
+      return res.status(404).json({ message: 'Recepção indisponível para este evento' });
+
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const search = [{ name: new RegExp(escapedQuery, 'i') }, { email: new RegExp(escapedQuery, 'i') }];
+    const crmDigits = query.replace(/\D/g, '');
+    if (crmDigits) search.push({ crm: new RegExp(crmDigits) });
+
+    const attendees = await Attendance.find({ meeting: meeting._id, $or: search })
+      .select('name email crm crmUf checkedIn checkedInAt')
+      .sort({ name: 1 })
+      .limit(12)
+      .lean();
+    res.json({ results: attendees });
+  } catch {
+    res.status(500).json({ message: 'Erro interno' });
+  }
+});
+
+// GET /api/meetings/reception/:token/lookup-token/:checkinToken - QR limitado ao evento
+router.get('/reception/:token/lookup-token/:checkinToken', async (req, res) => {
+  try {
+    const meeting = await MiniMeeting.findOne({ receptionToken: req.params.token })
+      .select('_id status');
+    if (!meeting || meeting.status !== 'ativo')
+      return res.status(404).json({ message: 'Recepção indisponível para este evento' });
+
+    const attendee = await Attendance.findOne({
+      meeting: meeting._id,
+      checkinToken: req.params.checkinToken
+    }).select('name email crm crmUf checkedIn checkedInAt').lean();
+    if (!attendee) return res.status(404).json({ message: 'Participante não encontrado' });
+    res.json({ attendee });
+  } catch {
+    res.status(500).json({ message: 'Erro interno' });
+  }
+});
+
+// POST /api/meetings/reception/:token/checkin/:attendeeId - check-in escopado ao evento
+router.post('/reception/:token/checkin/:attendeeId', async (req, res) => {
+  try {
+    const meeting = await MiniMeeting.findOne({ receptionToken: req.params.token })
+      .select('_id status title');
+    if (!meeting || meeting.status !== 'ativo')
+      return res.status(404).json({ message: 'Recepção indisponível para este evento' });
+
+    const { signature } = req.body;
+    const update = { checkedIn: true, checkedInAt: new Date() };
+    if (signature && typeof signature === 'string' && signature.startsWith('data:image/') && signature.length <= 5 * 1024 * 1024) {
+      update.signature = signature;
+      update.hasSignature = true;
+    }
+
+    const attendee = await Attendance.findOneAndUpdate(
+      { _id: req.params.attendeeId, meeting: meeting._id, checkedIn: false },
+      { $set: update },
+      { new: true }
+    );
+    if (!attendee) {
+      const existing = await Attendance.findOne({ _id: req.params.attendeeId, meeting: meeting._id })
+        .select('name checkedIn checkedInAt');
+      if (!existing) return res.status(404).json({ message: 'Participante não encontrado' });
+      return res.json({ alreadyCheckedIn: true, attendee: existing });
+    }
+
+    await MiniMeeting.updateOne({ _id: meeting._id }, { $inc: { checkedInCount: 1 } });
+    if (attendee.crm && attendee.crmUf) {
+      try {
+        await Doctor.recordAttendance({ crmNum: attendee.crm, ufUpper: attendee.crmUf, meetingId: meeting._id });
+      } catch { /* estatística não deve impedir o check-in */ }
+    }
+    res.json({ attendee: { name: attendee.name, checkedInAt: attendee.checkedInAt } });
   } catch {
     res.status(500).json({ message: 'Erro interno' });
   }

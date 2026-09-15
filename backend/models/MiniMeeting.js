@@ -19,6 +19,7 @@ const miniMeetingSchema = new mongoose.Schema({
   attendeeCount: { type: Number, default: 0 },
   checkedInCount: { type: Number, default: 0 },
   inviteToken: { type: String, unique: true },
+  receptionToken: { type: String, unique: true, sparse: true },
   status: { type: String, enum: ['ativo', 'encerrado', 'cancelado'], default: 'ativo' },
   createdAt: { type: Date, default: Date.now }
 });
