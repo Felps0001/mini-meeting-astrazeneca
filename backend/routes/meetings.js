@@ -6,6 +6,7 @@ const MiniMeeting = require('../models/MiniMeeting');
 const Attendance = require('../models/Attendance');
 const Doctor = require('../models/Doctor');
 const { generateMeetingCode } = require('../utils/meetingCode');
+const { sendRegistrationConfirmationEmail } = require('../utils/mailer');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 
 // GET /api/meetings - admin vê todos, user vê só os seus
@@ -799,6 +800,19 @@ router.post('/invite/:token/register', async (req, res) => {
         name, email, phone, city
       });
     } catch { /* estatística não deve quebrar a inscrição */ }
+
+    const clientUrl = (process.env.CLIENT_URL || '').replace(/\/$/, '');
+    const qrCodeLink = `${clientUrl}/event/${meeting.inviteToken}/qrcode`;
+    try {
+      await sendRegistrationConfirmationEmail({
+        toEmail: email.toLowerCase(),
+        attendeeName: name,
+        meeting,
+        qrCodeLink
+      });
+    } catch (error) {
+      console.error('Erro ao enviar confirmação de inscrição:', error.message);
+    }
 
     res.json({ message: 'Inscrição realizada com sucesso!', checkinToken });
   } catch (error) {
