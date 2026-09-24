@@ -1,10 +1,16 @@
 const nodemailer = require('nodemailer');
+const dns = require('dns');
 
 const createTransporter = () => {
   return nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
     port: parseInt(process.env.EMAIL_PORT),
     secure: Number(process.env.EMAIL_PORT) === 465,
+    lookup: (hostname, options, callback) => dns.lookup(
+      hostname,
+      { ...options, family: 4 },
+      callback
+    ),
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS
