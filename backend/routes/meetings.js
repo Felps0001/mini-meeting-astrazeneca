@@ -568,6 +568,57 @@ router.post('/:id/attendees/bulk', authMiddleware, async (req, res) => {
   }
 });
 
+// POST /api/meetings/:id/attendees/send-confirmations - envia confirmação aos pendentes
+router.post('/:id/attendees/send-confirmations', authMiddleware, async (req, res) => {
+  try {
+    const meeting = await MiniMeeting.findById(req.params.id);
+    if (!meeting) return res.status(404).json({ message: 'Meeting não encontrado' });
+
+    if (req.user.role !== 'admin' && meeting.organizer.toString() !== req.user.id)
+      return res.status(403).json({ message: 'Acesso negado' });
+
+    const attendees = await Attendance.find({
+      meeting: meeting._id,
+      confirmationEmailSentAt: { $exists: false }
+    }).select('name email').limit(50);
+
+    if (attendees.length === 0)
+      return res.json({ sent: 0, failed: 0, skipped: 0, message: 'Todos os participantes já receberam a confirmação' });
+
+    const clientUrl = (process.env.CLIENT_URL || '').replace(/\/$/, '');
+    const qrCodeLink = `${clientUrl}/event/${meeting.inviteToken}/qrcode`;
+    let sent = 0;
+    let failed = 0;
+
+    for (const attendee of attendees) {
+      try {
+        await sendRegistrationConfirmationEmail({
+          toEmail: attendee.email,
+          attendeeName: attendee.name,
+          meeting,
+          qrCodeLink
+        });
+        await Attendance.updateOne(
+          { _id: attendee._id, confirmationEmailSentAt: { $exists: false } },
+          { $set: { confirmationEmailSentAt: new Date() } }
+        );
+        sent++;
+      } catch (error) {
+        failed++;
+        console.error(`Erro ao enviar confirmação para ${attendee.email}:`, error.message);
+      }
+    }
+
+    const remaining = await Attendance.countDocuments({
+      meeting: meeting._id,
+      confirmationEmailSentAt: { $exists: false }
+    });
+    res.json({ sent, failed, skipped: 0, remaining });
+  } catch {
+    res.status(500).json({ message: 'Erro interno' });
+  }
+});
+
 // GET /api/meetings/invite/:token/lookup?q= - busca pública de participante pelo nome/email
 router.get('/invite/:token/lookup', async (req, res) => {
   try {
@@ -803,6 +854,7 @@ router.post('/invite/:token/register', async (req, res) => {
 
     const clientUrl = (process.env.CLIENT_URL || '').replace(/\/$/, '');
     const qrCodeLink = `${clientUrl}/event/${meeting.inviteToken}/qrcode`;
+    let confirmationEmailSentAt;
     try {
       await sendRegistrationConfirmationEmail({
         toEmail: email.toLowerCase(),
@@ -810,8 +862,16 @@ router.post('/invite/:token/register', async (req, res) => {
         meeting,
         qrCodeLink
       });
+      confirmationEmailSentAt = new Date();
     } catch (error) {
       console.error('Erro ao enviar confirmação de inscrição:', error.message);
+    }
+
+    if (confirmationEmailSentAt) {
+      await Attendance.updateOne(
+        { meeting: meeting._id, email: email.toLowerCase() },
+        { $set: { confirmationEmailSentAt } }
+      );
     }
 
     res.json({ message: 'Inscrição realizada com sucesso!', checkinToken });

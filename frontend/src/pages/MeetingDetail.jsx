@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { useModal } from "../context/ModalContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, Mail } from "lucide-react";
 import "./MeetingDetail.css";
 
 const MeetingDetail = () => {
@@ -25,6 +25,7 @@ const MeetingDetail = () => {
   const [viewingSignature, setViewingSignature] = useState(null); // { name, url }
   const [signatureLoadingId, setSignatureLoadingId] = useState(null);
   const [exporting, setExporting] = useState("");
+  const [sendingConfirmations, setSendingConfirmations] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [verifyProgress, setVerifyProgress] = useState(null); // { current, total }
   const verifyAbortRef = useRef(false);
@@ -320,6 +321,32 @@ const MeetingDetail = () => {
     loadMeeting().finally(() => setRefreshing(false));
   };
 
+  const handleSendConfirmations = async () => {
+    const pending = meeting.attendees.filter(
+      (attendee) => !attendee.confirmationEmailSentAt,
+    ).length;
+    if (pending === 0) {
+      toast("Todos os participantes já receberam a confirmação", "warning");
+      return;
+    }
+    if (!(await confirm(`Enviar e-mail de confirmação para ${pending} participante(s)?`))) return;
+
+    setSendingConfirmations(true);
+    try {
+      const { data } = await api.post(`/meetings/${id}/attendees/send-confirmations`);
+      const parts = [`${data.sent} enviado(s)`];
+      if (data.failed > 0) parts.push(`${data.failed} falha(s)`);
+      if (data.remaining > 0)
+        parts.push(`${data.remaining} pendente(s); envie novamente para continuar`);
+      toast(parts.join(", "), data.failed > 0 ? "warning" : "success");
+      await loadMeeting();
+    } catch (err) {
+      toast(err.response?.data?.message || "Erro ao enviar confirmações", "error");
+    } finally {
+      setSendingConfirmations(false);
+    }
+  };
+
   const handleViewSignature = async (attendee) => {
     setSignatureLoadingId(attendee._id);
     try {
@@ -561,24 +588,28 @@ const MeetingDetail = () => {
                 Escanear check-in
               </Link>
             )}
-            {meeting.status === "ativo" && canEdit && meeting.receptionToken && (
-              <>
-                <a
-                  href={`${window.location.origin}${import.meta.env.BASE_URL}reception/${meeting.receptionToken}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn-invite meeting-header-action"
-                >
-                  Modo recepção
-                </a>
-                <button
-                  className="btn-invite meeting-header-action"
-                  onClick={copyReceptionLink}
-                >
-                  {receptionCopied ? "Link copiado" : "Copiar link da recepção"}
-                </button>
-              </>
-            )}
+            {meeting.status === "ativo" &&
+              canEdit &&
+              meeting.receptionToken && (
+                <>
+                  <a
+                    href={`${window.location.origin}${import.meta.env.BASE_URL}reception/${meeting.receptionToken}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-invite meeting-header-action"
+                  >
+                    Modo recepção
+                  </a>
+                  <button
+                    className="btn-invite meeting-header-action"
+                    onClick={copyReceptionLink}
+                  >
+                    {receptionCopied
+                      ? "Link copiado"
+                      : "Copiar link da recepção"}
+                  </button>
+                </>
+              )}
             {canEdit && (
               <Link
                 to={`/meetings/${id}/edit`}
@@ -708,6 +739,17 @@ const MeetingDetail = () => {
             )}
             {canEdit && (
               <>
+                {meeting.attendees.length > 0 && (
+                  <button
+                    className="btn-small attendees-header-action"
+                    onClick={handleSendConfirmations}
+                    disabled={sendingConfirmations}
+                    title="Enviar confirmação e acesso ao QR Code por e-mail"
+                  >
+                    <Mail size={15} aria-hidden="true" />
+                    {sendingConfirmations ? "Enviando..." : "Enviar confirmações"}
+                  </button>
+                )}
                 <input
                   ref={csvInputRef}
                   type="file"

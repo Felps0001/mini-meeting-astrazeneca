@@ -19,6 +19,7 @@ const attendanceSchema = new mongoose.Schema({
   checkinToken: { type: String, required: true },
   checkedIn: { type: Boolean, default: false },
   checkedInAt: { type: Date },
+  confirmationEmailSentAt: { type: Date },
   registeredAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 
